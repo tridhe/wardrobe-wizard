@@ -179,7 +179,23 @@ function StylistPage() {
                 autoFocus
                 placeholder="A rooftop dinner tonight, slightly chilly..."
               />
-              <PromptInputFooter className="justify-end">
+              <PromptInputFooter className="justify-between">
+                <Button
+                  type="button"
+                  variant={isRecording ? "destructive" : "ghost"}
+                  size="icon"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isTranscribing || isLoading}
+                  aria-label={isRecording ? "Stop recording" : "Record voice"}
+                >
+                  {isTranscribing ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : isRecording ? (
+                    <Square className="size-4" />
+                  ) : (
+                    <Mic className="size-4" />
+                  )}
+                </Button>
                 <PromptInputSubmit status={status} disabled={isLoading} size="icon-sm" />
               </PromptInputFooter>
             </PromptInput>
