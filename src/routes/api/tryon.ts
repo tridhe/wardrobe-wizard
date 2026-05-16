@@ -17,17 +17,6 @@ const BodySchema = z.object({
   eventContext: z.string().max(500).optional(),
 });
 
-async function urlToDataUrl(url: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  const buf = new Uint8Array(await res.arrayBuffer());
-  let bin = "";
-  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-  const b64 = btoa(bin);
-  return `data:${contentType};base64,${b64}`;
-}
-
 export const Route = createFileRoute("/api/tryon")({
   server: {
     handlers: {
@@ -36,25 +25,25 @@ export const Route = createFileRoute("/api/tryon")({
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
-        // Resolve all URLs against the incoming request so relative asset
-        // URLs (e.g. /_build/assets/avatar.xxx.jpg) work in dev and prod.
         const base = new URL(request.url);
         const resolve = (u: string) => new URL(u, base).toString();
 
-        const [avatarDataUrl, ...itemDataUrls] = await Promise.all([
-          urlToDataUrl(resolve(body.avatarUrl)),
-          ...body.items.map((i) => urlToDataUrl(resolve(i.imageUrl))),
-        ]);
+        // Cap outfit pieces to keep token budget under the model's 32k limit.
+        const items = body.items.slice(0, 4);
+        const avatarUrl = resolve(body.avatarUrl);
+        const itemUrls = items.map((i) => resolve(i.imageUrl));
 
-        const itemList = body.items
+        const itemList = items
           .map((i) => `${i.name}${i.detail ? ` (${i.detail})` : ""}`)
           .join(", ");
         const prompt = `Editorial full-body fashion photograph of the woman in the first reference photo, wearing this complete outfit composed from the following reference garments: ${itemList}. Faithfully preserve her face, hair, and identity from the first image. Studio lighting on a soft neutral gradient backdrop, high fashion magazine style, sharp focus, elegant pose. ${body.eventContext ? `Styled for: ${body.eventContext}.` : ""}`;
 
+        // Pass image URLs directly — the gateway fetches them, avoiding the
+        // huge base64 token cost that triggers INVALID_ARGUMENT (32k limit).
         const content = [
           { type: "text", text: prompt },
-          { type: "image_url", image_url: { url: avatarDataUrl } },
-          ...itemDataUrls.map((url) => ({ type: "image_url", image_url: { url } })),
+          { type: "image_url", image_url: { url: avatarUrl } },
+          ...itemUrls.map((url) => ({ type: "image_url", image_url: { url } })),
         ];
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
