@@ -2,11 +2,15 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Compass, Sparkles, Check, Shirt } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { label: "Discovery", icon: Compass, to: "/discovery" as const },
-  { label: "Stylist", icon: Sparkles, to: "/stylist" as const },
-  { label: "Closet", icon: Check, to: "/" as const },
-  { label: "Outfits", icon: Shirt, to: "/outfits" as const },
+type NavItem =
+  | { label: string; icon: typeof Compass; to: "/" | "/stylist" }
+  | { label: string; icon: typeof Compass; disabled: true };
+
+const navItems: NavItem[] = [
+  { label: "Discovery", icon: Compass, disabled: true },
+  { label: "Stylist", icon: Sparkles, to: "/stylist" },
+  { label: "Closet", icon: Check, to: "/" },
+  { label: "Outfits", icon: Shirt, disabled: true },
 ];
 
 export function Sidebar() {
@@ -21,12 +25,25 @@ export function Sidebar() {
         </p>
       </div>
       <nav className="flex flex-col gap-1 flex-1">
-        {navItems.map(({ label, icon: Icon, to }) => {
-          const active = pathname === to;
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          if ("disabled" in item) {
+            return (
+              <button
+                key={item.label}
+                disabled
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground/60 cursor-not-allowed text-left"
+              >
+                <Icon className="size-4" strokeWidth={1.75} />
+                {item.label}
+              </button>
+            );
+          }
+          const active = pathname === item.to;
           return (
             <Link
-              key={label}
-              to={to}
+              key={item.label}
+              to={item.to}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
                 active
@@ -35,7 +52,7 @@ export function Sidebar() {
               )}
             >
               <Icon className="size-4" strokeWidth={1.75} />
-              {label}
+              {item.label}
             </Link>
           );
         })}
