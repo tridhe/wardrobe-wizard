@@ -137,6 +137,7 @@ function RootComponent() {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const localAgentBypass = import.meta.env.VITE_LOCAL_AGENT_BYPASS === "true";
   const [session, setSession] = useState<Session | null>(null);
   const [demoSession, setDemoSession] = useState(false);
   const [ready, setReady] = useState(false);
@@ -166,10 +167,11 @@ function RootComponent() {
 
   useEffect(() => {
     if (!ready) return;
+    if (localAgentBypass) return;
     if (!session && !demoSession && pathname !== "/login") {
       navigate({ to: "/login" });
     }
-  }, [ready, session, demoSession, pathname, navigate]);
+  }, [localAgentBypass, ready, session, demoSession, pathname, navigate]);
 
   useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
@@ -181,7 +183,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {ready && (session || demoSession || pathname === "/login") ? <Outlet /> : null}
+      {ready && (localAgentBypass || session || demoSession || pathname === "/login") ? (
+        <Outlet />
+      ) : null}
       <Toaster />
     </QueryClientProvider>
   );

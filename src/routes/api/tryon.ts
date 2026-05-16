@@ -25,48 +25,54 @@ const BodySchema = z.object({
   eventContext: z.string().max(500).optional(),
 });
 
+function dataUrlToBlob(dataUrl: string): { blob: Blob; extension: string } {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+  if (!match) {
+    throw new Error("OpenAI image edits require data URL image inputs");
+  }
+  const mimeType = match[1];
+  const base64 = match[2];
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const extension = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "png";
+  return { blob: new Blob([bytes], { type: mimeType }), extension };
+}
+
 export const Route = createFileRoute("/api/tryon")({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
         const body = BodySchema.parse(await request.json());
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
-
-        const base = new URL(request.url);
-        const resolve = (u: string) =>
-          u.startsWith("data:") ? u : new URL(u, base).toString();
+        const key = process.env.OPENAI_API_KEY;
+        if (!key) return new Response("Missing OPENAI_API_KEY", { status: 500 });
 
         // Cap outfit pieces to keep token budget under the model's 32k limit.
         const items = body.items.slice(0, 4);
-        const avatarUrl = resolve(body.avatarUrl);
-        const itemUrls = items.map((i) => resolve(i.imageUrl));
 
         const itemList = items
           .map((i) => `${i.name}${i.detail ? ` (${i.detail})` : ""}`)
           .join(", ");
         const prompt = `Editorial full-body fashion photograph of the woman in the first reference photo, wearing this complete outfit composed from the following reference garments: ${itemList}. Faithfully preserve her face, hair, and identity from the first image. Studio lighting on a soft neutral gradient backdrop, high fashion magazine style, sharp focus, elegant pose. ${body.eventContext ? `Styled for: ${body.eventContext}.` : ""}`;
 
-        // Pass image URLs directly — the gateway fetches them, avoiding the
-        // huge base64 token cost that triggers INVALID_ARGUMENT (32k limit).
-        const content = [
-          { type: "text", text: prompt },
-          { type: "image_url", image_url: { url: avatarUrl } },
-          ...itemUrls.map((url) => ({ type: "image_url", image_url: { url } })),
-        ];
+        const formData = new FormData();
+        formData.append("model", process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1");
+        formData.append("prompt", prompt);
+        formData.append("size", "1024x1536");
 
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const imageInputs = [
+          { label: "avatar", dataUrl: body.avatarUrl },
+          ...items.map((item) => ({ label: item.name, dataUrl: item.imageUrl })),
+        ];
+        imageInputs.forEach((image, index) => {
+          const { blob, extension } = dataUrlToBlob(image.dataUrl);
+          formData.append("image[]", blob, `${index}-${image.label}.${extension}`);
+        });
+
+        const aiRes = await fetch("https://api.openai.com/v1/images/edits", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "Lovable-API-Key": key,
-            "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+            Authorization: `Bearer ${key}`,
           },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image",
-            messages: [{ role: "user", content }],
-            modalities: ["image", "text"],
-          }),
+          body: formData,
         });
 
         if (!aiRes.ok) {
@@ -75,13 +81,12 @@ export const Route = createFileRoute("/api/tryon")({
         }
 
         const data = (await aiRes.json()) as {
-          choices?: Array<{
-            message?: {
-              images?: Array<{ image_url?: { url?: string } }>;
-            };
-          }>;
+          data?: Array<{ b64_json?: string; url?: string }>;
         };
-        const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        const generated = data.data?.[0];
+        const imageUrl = generated?.b64_json
+          ? `data:image/png;base64,${generated.b64_json}`
+          : generated?.url;
         if (!imageUrl) {
           return new Response("No image returned", { status: 502 });
         }

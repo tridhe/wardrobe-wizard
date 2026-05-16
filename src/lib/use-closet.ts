@@ -27,19 +27,11 @@ export function useClosetCatalog() {
     queryKey: ["closet-catalog"],
     queryFn: async () => {
       const [itemsRes, settingsRes] = await Promise.all([
-        supabase
-          .from("user_items")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("app_settings")
-          .select("value")
-          .eq("key", "avatar_url")
-          .maybeSingle(),
+        supabase.from("user_items").select("*").order("created_at", { ascending: false }),
+        supabase.from("app_settings").select("value").eq("key", "avatar_url").maybeSingle(),
       ]);
 
-      if (itemsRes.error) throw itemsRes.error;
-      const userItems = (itemsRes.data ?? []).map(toClosetItem);
+      const userItems = itemsRes.error ? [] : (itemsRes.data ?? []).map(toClosetItem);
       const all: ClosetItem[] = [...userItems, ...closetItems];
       const avatarUrl = settingsRes.data?.value ?? staticAvatar;
       return { items: all, userItems, avatarUrl };

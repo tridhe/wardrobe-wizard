@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2 } from "lucide-react";
@@ -36,6 +36,26 @@ export const Route = createFileRoute("/stylist")({
 
 const OUTFIT_RE = /OUTFIT:\s*([a-zA-Z0-9_,\s-]+)/;
 
+declare global {
+  interface Window {
+    __WARDROBE_AGENT__?: {
+      getState: () => {
+        route: "stylist";
+        status: string;
+        isLoading: boolean;
+        inputValue: string;
+        messageCount: number;
+        hasAssistantResult: boolean;
+        latestAssistantText: string;
+        latestOutfitIds: string[] | null;
+      };
+      setOccasion: (text: string) => boolean;
+      submit: () => boolean;
+      scrollConversation: (direction?: "up" | "down" | "top" | "bottom") => boolean;
+    };
+  }
+}
+
 function extractOutfit(text: string): string[] | null {
   const m = text.match(OUTFIT_RE);
   if (!m) return null;
@@ -57,6 +77,21 @@ function getMessageText(m: UIMessage): string {
     .trim();
 }
 
+function setTextareaValue(el: HTMLTextAreaElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLTextAreaElement.prototype,
+    "value",
+  )?.set;
+  if (setter) {
+    setter.call(el, value);
+  } else {
+    el.value = value;
+  }
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  el.focus();
+}
+
 function StylistPage() {
   const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
   const { messages, sendMessage, status } = useChat({
@@ -74,6 +109,66 @@ function StylistPage() {
   useEffect(() => {
     if (!isLoading) textareaRef.current?.focus();
   }, [isLoading]);
+
+  const setOccasionText = useCallback((text: string) => {
+    const el = textareaRef.current;
+    if (!el) return false;
+    setTextareaValue(el, text);
+    return true;
+  }, []);
+
+  const submitPrompt = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el || !el.value.trim() || isLoading) return false;
+    const form =
+      el.form ?? document.querySelector<HTMLFormElement>('[data-agent-id="stylist-form"]');
+    if (!form) return false;
+    form.requestSubmit();
+    return true;
+  }, [isLoading]);
+
+  const scrollConversation = useCallback((direction: "up" | "down" | "top" | "bottom" = "down") => {
+    const root = document.querySelector<HTMLElement>('[data-agent-id="stylist-conversation"]');
+    if (!root) return false;
+    const candidates = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+    const target = candidates.find((node) => node.scrollHeight > node.clientHeight + 12) ?? root;
+    const amount = Math.max(240, Math.round(target.clientHeight * 0.82));
+    if (direction === "top") {
+      target.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (direction === "bottom") {
+      target.scrollTo({ top: target.scrollHeight, behavior: "smooth" });
+    } else {
+      target.scrollBy({ top: direction === "up" ? -amount : amount, behavior: "smooth" });
+    }
+    return true;
+  }, []);
+
+  useEffect(() => {
+    const latestAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    const latestAssistantText = latestAssistant ? getMessageText(latestAssistant) : "";
+    const latestOutfitIds = latestAssistantText ? extractOutfit(latestAssistantText) : null;
+    const bridge = {
+      getState: () => ({
+        route: "stylist" as const,
+        status,
+        isLoading,
+        inputValue: textareaRef.current?.value ?? "",
+        messageCount: messages.length,
+        hasAssistantResult: Boolean(latestAssistantText),
+        latestAssistantText,
+        latestOutfitIds,
+      }),
+      setOccasion: setOccasionText,
+      submit: submitPrompt,
+      scrollConversation,
+    };
+    window.__WARDROBE_AGENT__ = bridge;
+    return () => {
+      if (window.__WARDROBE_AGENT__ === bridge) {
+        delete window.__WARDROBE_AGENT__;
+      }
+    };
+  }, [isLoading, messages, scrollConversation, setOccasionText, status, submitPrompt]);
 
   const startRecording = async () => {
     try {
@@ -97,13 +192,7 @@ function StylistPage() {
             const el = textareaRef.current;
             const current = el.value;
             const next = current ? `${current} ${text}` : text;
-            const setter = Object.getOwnPropertyDescriptor(
-              window.HTMLTextAreaElement.prototype,
-              "value"
-            )?.set;
-            setter?.call(el, next);
-            el.dispatchEvent(new Event("input", { bubbles: true }));
-            el.focus();
+            setTextareaValue(el, next);
           } else if (!text) {
             toast.error("Didn't catch that — try again.");
           }
@@ -127,7 +216,6 @@ function StylistPage() {
     setIsRecording(false);
   };
 
-
   return (
     <div className="min-h-screen bg-muted/40 flex">
       <Sidebar />
@@ -138,7 +226,9 @@ function StylistPage() {
               <Sparkles className="size-5" strokeWidth={1.75} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">Stylist</h2>
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+                Stylist
+              </h2>
               <p className="text-sm text-muted-foreground">
                 Tell Atelier about your event — get dressed from your closet.
               </p>
@@ -146,7 +236,7 @@ function StylistPage() {
           </div>
         </header>
 
-        <Conversation className="flex-1">
+        <Conversation className="flex-1" data-agent-id="stylist-conversation">
           <ConversationContent className="max-w-3xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
             {messages.length === 0 ? (
               <ConversationEmptyState
@@ -158,7 +248,7 @@ function StylistPage() {
               messages.map((m) => <StylistMessage key={m.id} message={m} />)
             )}
             {status === "submitted" && (
-              <div className="px-2 py-3">
+              <div className="px-2 py-3" data-agent-id="stylist-loading">
                 <Shimmer>Composing your look...</Shimmer>
               </div>
             )}
@@ -169,6 +259,7 @@ function StylistPage() {
         <div className="border-t border-border bg-background p-4 md:p-6">
           <div className="max-w-3xl mx-auto">
             <PromptInput
+              data-agent-id="stylist-form"
               onSubmit={(message) => {
                 if (!message.text.trim()) return;
                 sendMessage({ text: message.text });
@@ -176,6 +267,8 @@ function StylistPage() {
             >
               <PromptInputTextarea
                 ref={textareaRef}
+                aria-label="Styling occasion"
+                data-agent-id="stylist-occasion-input"
                 autoFocus
                 placeholder="A rooftop dinner tonight, slightly chilly..."
               />
@@ -196,7 +289,12 @@ function StylistPage() {
                     <Mic className="size-4" />
                   )}
                 </Button>
-                <PromptInputSubmit status={status} disabled={isLoading} size="icon-sm" />
+                <PromptInputSubmit
+                  status={status}
+                  disabled={isLoading}
+                  size="icon-sm"
+                  data-agent-id="stylist-submit"
+                />
               </PromptInputFooter>
             </PromptInput>
           </div>
@@ -213,18 +311,18 @@ function StylistMessage({ message }: { message: UIMessage }) {
 
   if (message.role === "user") {
     return (
-      <Message from="user">
+      <Message from="user" data-agent-role="user-message">
         <MessageContent>{displayText}</MessageContent>
       </Message>
     );
   }
 
   return (
-    <Message from="assistant">
-      <MessageContent>
+    <Message from="assistant" data-agent-role="assistant-message">
+      <MessageContent data-agent-id="stylist-result">
         {displayText && <MessageResponse>{displayText}</MessageResponse>}
         {outfitIds && (
-          <div className="mt-4">
+          <div className="mt-4" data-agent-id="stylist-outfit-card">
             <OutfitCard ids={outfitIds} eventContext={getLastUserText(message)} />
           </div>
         )}
@@ -237,4 +335,3 @@ function StylistMessage({ message }: { message: UIMessage }) {
 function getLastUserText(_m: UIMessage): string | undefined {
   return undefined;
 }
-

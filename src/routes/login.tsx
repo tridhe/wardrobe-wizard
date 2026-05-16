@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { isDemoAuthenticated, signInDemo } from "@/lib/demo-auth";
@@ -25,16 +24,21 @@ function LoginPage() {
 
   const signIn = async () => {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/today`,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/today`,
+        scopes: "openid email profile https://www.googleapis.com/auth/calendar.readonly",
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
     });
-    if (result.error) {
-      toast.error(result.error.message ?? "Sign in failed");
+    if (error) {
+      toast.error(error.message ?? "Sign in failed");
       setLoading(false);
-      return;
     }
-    if (result.redirected) return;
-    navigate({ to: "/today" });
   };
 
   const startDemo = () => {

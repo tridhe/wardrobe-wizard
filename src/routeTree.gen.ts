@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTryonRouteImport } from './routes/api/tryon'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiTodayRouteImport } from './routes/api/today'
+import { Route as ApiTagItemRouteImport } from './routes/api/tag-item'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const TodayRoute = TodayRouteImport.update({
@@ -59,6 +60,11 @@ const ApiTodayRoute = ApiTodayRouteImport.update({
   path: '/api/today',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTagItemRoute = ApiTagItemRouteImport.update({
+  id: '/api/tag-item',
+  path: '/api/tag-item',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/tag-item': typeof ApiTagItemRoute
   '/api/today': typeof ApiTodayRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tryon': typeof ApiTryonRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/tag-item': typeof ApiTagItemRoute
   '/api/today': typeof ApiTodayRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tryon': typeof ApiTryonRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/tag-item': typeof ApiTagItemRoute
   '/api/today': typeof ApiTodayRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tryon': typeof ApiTryonRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/stylist'
     | '/today'
     | '/api/chat'
+    | '/api/tag-item'
     | '/api/today'
     | '/api/transcribe'
     | '/api/tryon'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/stylist'
     | '/today'
     | '/api/chat'
+    | '/api/tag-item'
     | '/api/today'
     | '/api/transcribe'
     | '/api/tryon'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/stylist'
     | '/today'
     | '/api/chat'
+    | '/api/tag-item'
     | '/api/today'
     | '/api/transcribe'
     | '/api/tryon'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   StylistRoute: typeof StylistRoute
   TodayRoute: typeof TodayRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiTagItemRoute: typeof ApiTagItemRoute
   ApiTodayRoute: typeof ApiTodayRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTryonRoute: typeof ApiTryonRoute
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTodayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/tag-item': {
+      id: '/api/tag-item'
+      path: '/api/tag-item'
+      fullPath: '/api/tag-item'
+      preLoaderRoute: typeof ApiTagItemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -222,6 +242,7 @@ const rootRouteChildren: RootRouteChildren = {
   StylistRoute: StylistRoute,
   TodayRoute: TodayRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiTagItemRoute: ApiTagItemRoute,
   ApiTodayRoute: ApiTodayRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTryonRoute: ApiTryonRoute,
@@ -229,3 +250,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

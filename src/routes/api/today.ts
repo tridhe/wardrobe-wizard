@@ -29,9 +29,7 @@ function parseOutfit(text: string, validIds: Set<string>) {
         rationale?: string;
         outfit?: string[];
       };
-      const ids = (parsed.outfit ?? [])
-        .map((s) => String(s).trim())
-        .filter((s) => validIds.has(s));
+      const ids = (parsed.outfit ?? []).map((s) => String(s).trim()).filter((s) => validIds.has(s));
       if (ids.length) return { rationale: parsed.rationale?.trim() ?? "", ids };
     } catch {
       /* ignore */
@@ -67,11 +65,7 @@ async function fetchTodaysEvents(googleToken: string): Promise<GCalEvent[]> {
   return data.items ?? [];
 }
 
-async function planOutfit(
-  lovableKey: string,
-  event: GCalEvent,
-  catalog: CatalogEntry[],
-) {
+async function planOutfit(openAiKey: string, event: GCalEvent, catalog: CatalogEntry[]) {
   const when = event.start?.dateTime ?? event.start?.date ?? "";
   const userPrompt = `Event: ${event.summary ?? "Untitled"}
 When: ${when}
@@ -86,19 +80,18 @@ ${formatCatalogForPrompt(catalog)}
 Respond with ONLY a JSON object: {"rationale": "1-2 sentences", "outfit": ["id1","id2","id3"]}
 Use 2-4 ids. Only ids from the closet list.`;
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${lovableKey}`,
+      Authorization: `Bearer ${openAiKey}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: process.env.OPENAI_CHAT_MODEL ?? "gpt-4.1-mini",
       messages: [
         {
           role: "system",
-          content:
-            "You are Atelier, an expert personal stylist. Respond with strict JSON only.",
+          content: "You are Atelier, an expert personal stylist. Respond with strict JSON only.",
         },
         { role: "user", content: userPrompt },
       ],
@@ -116,8 +109,8 @@ export const Route = createFileRoute("/api/today")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const lovableKey = process.env.LOVABLE_API_KEY;
-        if (!lovableKey) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+        const openAiKey = process.env.OPENAI_API_KEY;
+        if (!openAiKey) return new Response("Missing OPENAI_API_KEY", { status: 500 });
 
         let body: { providerToken?: string };
         try {
@@ -139,7 +132,7 @@ export const Route = createFileRoute("/api/today")({
           ]);
           const planned: PlannedEvent[] = await Promise.all(
             events.map(async (ev) => {
-              const { rationale, ids } = await planOutfit(lovableKey, ev, catalog);
+              const { rationale, ids } = await planOutfit(openAiKey, ev, catalog);
               return {
                 id: ev.id,
                 summary: ev.summary ?? "Untitled event",
