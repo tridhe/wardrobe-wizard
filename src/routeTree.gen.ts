@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StylistRouteImport } from './routes/stylist'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTryonRouteImport } from './routes/api/tryon'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
+const StylistRoute = StylistRouteImport.update({
+  id: '/stylist',
+  path: '/stylist',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,36 +37,47 @@ const ApiChatRoute = ApiChatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/stylist': typeof StylistRoute
   '/api/chat': typeof ApiChatRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/stylist': typeof StylistRoute
   '/api/chat': typeof ApiChatRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/stylist': typeof StylistRoute
   '/api/chat': typeof ApiChatRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/chat' | '/api/tryon'
+  fullPaths: '/' | '/stylist' | '/api/chat' | '/api/tryon'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/chat' | '/api/tryon'
-  id: '__root__' | '/' | '/api/chat' | '/api/tryon'
+  to: '/' | '/stylist' | '/api/chat' | '/api/tryon'
+  id: '__root__' | '/' | '/stylist' | '/api/chat' | '/api/tryon'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  StylistRoute: typeof StylistRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiTryonRoute: typeof ApiTryonRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/stylist': {
+      id: '/stylist'
+      path: '/stylist'
+      fullPath: '/stylist'
+      preLoaderRoute: typeof StylistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,9 +104,20 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  StylistRoute: StylistRoute,
   ApiChatRoute: ApiChatRoute,
   ApiTryonRoute: ApiTryonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
