@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles } from "lucide-react";
+import { Sparkles, UserRound } from "lucide-react";
 import { toast } from "sonner";
+import { mockUsers, setMockUser, useMockUser } from "@/lib/mock-user";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
-    meta: [{ title: "Sign in — Atelier AI" }],
+    meta: [{ title: "Sign in — Aura" }],
   }),
   component: LoginPage,
 });
@@ -14,12 +15,17 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const mockUser = useMockUser();
 
   useEffect(() => {
+    if (mockUser) {
+      navigate({ to: "/" });
+      return;
+    }
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/today" });
     });
-  }, [navigate]);
+  }, [mockUser, navigate]);
 
   const signIn = async () => {
     setLoading(true);
@@ -40,15 +46,20 @@ function LoginPage() {
     }
   };
 
+  const signInAsMock = (id: string) => {
+    setMockUser(id);
+    navigate({ to: "/" });
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40 px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-background p-10 shadow-sm text-center">
         <div className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto mb-6">
           <Sparkles className="size-5" strokeWidth={1.75} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Atelier AI</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Aura</h1>
         <p className="text-[10px] font-medium tracking-[0.18em] text-muted-foreground mt-1 uppercase">
-          Digital Atelier
+          Personal Style AI
         </p>
         <p className="mt-6 text-sm text-muted-foreground">Sign in with Google to style your day.</p>
         <button
@@ -59,7 +70,29 @@ function LoginPage() {
           <GoogleIcon />
           {loading ? "Redirecting…" : "Continue with Google"}
         </button>
-        <p className="mt-6 text-[11px] text-muted-foreground">One-tap secure sign in via Google.</p>
+        <div className="mt-6 border-t border-border pt-6">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Demo mode
+          </p>
+          <div className="mt-3 grid gap-2">
+            {mockUsers.map((user) => (
+              <button
+                key={user.id}
+                onClick={() => signInAsMock(user.id)}
+                className="inline-flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-accent"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <UserRound className="size-4" />
+                  Continue as {user.name}
+                </span>
+                <span className="text-[11px] text-muted-foreground">Mock</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="mt-6 text-[11px] text-muted-foreground">
+          Use mock users for demos, or Google for real account access.
+        </p>
       </div>
     </div>
   );

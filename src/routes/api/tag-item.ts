@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { z } from "zod";
-import { type ClosetCategory } from "@/lib/closet";
+import { type ClosetCategory, type ClosetTags } from "@/lib/closet";
 
 const categories = ["Tops", "Bottoms", "Dresses", "Shoes", "Outerwear"] as const;
 
@@ -16,13 +16,38 @@ type TagResult = {
   category: ClosetCategory;
   color: string;
   garmentType: string;
+  fit: string;
+  material: string;
+  pattern: string;
+  silhouette: string;
+  formality: string;
+  season: string[];
+  occasions: string[];
+  styleTags: string[];
 };
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value
+        .map((item) => String(item).trim())
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
+}
 
 function fallbackTags(body: z.infer<typeof BodySchema>): TagResult {
   return {
     category: body.category ?? "Tops",
     color: body.color?.trim() || "Unknown color",
     garmentType: body.garmentType?.trim() || "Clothing item",
+    fit: "",
+    material: "",
+    pattern: "",
+    silhouette: "",
+    formality: "",
+    season: [],
+    occasions: [],
+    styleTags: [],
   };
 }
 
@@ -30,6 +55,7 @@ function normalizeTags(value: unknown, body: z.infer<typeof BodySchema>): TagRes
   const fallback = fallbackTags(body);
   if (!value || typeof value !== "object") return fallback;
   const parsed = value as Partial<TagResult>;
+  const tags = parsed as Partial<ClosetTags>;
   return {
     category:
       body.category ??
@@ -38,6 +64,14 @@ function normalizeTags(value: unknown, body: z.infer<typeof BodySchema>): TagRes
         : fallback.category),
     color: body.color?.trim() || parsed.color?.trim() || fallback.color,
     garmentType: body.garmentType?.trim() || parsed.garmentType?.trim() || fallback.garmentType,
+    fit: tags.fit?.trim() || fallback.fit,
+    material: tags.material?.trim() || fallback.material,
+    pattern: tags.pattern?.trim() || fallback.pattern,
+    silhouette: tags.silhouette?.trim() || fallback.silhouette,
+    formality: tags.formality?.trim() || fallback.formality,
+    season: stringArray(tags.season),
+    occasions: stringArray(tags.occasions),
+    styleTags: stringArray(tags.styleTags),
   };
 }
 
@@ -47,11 +81,12 @@ export const Route = createFileRoute("/api/tag-item")({
       POST: async ({ request }: { request: Request }) => {
         const body = BodySchema.parse(await request.json());
         const existing = fallbackTags(body);
-        const needsInference = !body.category || !body.color?.trim() || !body.garmentType?.trim();
-        if (!needsInference) return Response.json(existing);
-
+        const hasBasicTags = body.category && body.color?.trim() && body.garmentType?.trim();
         const key = process.env.OPENAI_API_KEY;
-        if (!key) return new Response("Missing OPENAI_API_KEY", { status: 500 });
+        if (!key) {
+          if (hasBasicTags) return Response.json(existing);
+          return new Response("Missing OPENAI_API_KEY", { status: 500 });
+        }
 
         const res = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -83,9 +118,9 @@ Existing user inputs:
 - garmentType: ${body.garmentType ?? ""}
 
 Return ONLY JSON like:
-{"category":"Tops","color":"white","garmentType":"t-shirt"}
+{"category":"Tops","color":"white","garmentType":"t-shirt","fit":"relaxed","material":"cotton jersey","pattern":"solid","silhouette":"crew neck short sleeve","formality":"casual","season":["spring","summer"],"occasions":["weekend","travel"],"styleTags":["minimal","basic","streetwear"]}
 
-If a user input is already present, preserve it exactly. Use a concise everyday garment type such as t-shirt, shirt, jeans, trousers, skirt, sneaker, boot, jacket, blazer, coat, dress, sweater, hoodie.`,
+If category, color, or garmentType user input is already present, preserve it exactly. Use concise everyday garment types such as t-shirt, shirt, jeans, trousers, skirt, sneaker, boot, jacket, blazer, coat, dress, sweater, hoodie. Keep arrays short and practical.`,
                   },
                   { type: "image_url", image_url: { url: body.imageUrl } },
                 ],

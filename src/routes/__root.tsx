@@ -15,6 +15,7 @@ import type { Session } from "@supabase/supabase-js";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useMockUser } from "@/lib/mock-user";
 
 function NotFoundComponent() {
   return (
@@ -78,14 +79,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Aura" },
+      { name: "description", content: "AI wardrobe and outfit styling." },
+      { name: "author", content: "Aura" },
+      { property: "og:title", content: "Aura" },
+      { property: "og:description", content: "AI wardrobe and outfit styling." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@Aura" },
     ],
     links: [
       {
@@ -122,6 +123,7 @@ function RootComponent() {
   const localAgentBypass = import.meta.env.VITE_LOCAL_AGENT_BYPASS === "true";
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const mockUser = useMockUser();
 
   useEffect(() => {
     const {
@@ -141,14 +143,16 @@ function RootComponent() {
   useEffect(() => {
     if (!ready) return;
     if (localAgentBypass) return;
-    if (!session && pathname !== "/login") {
+    if (!session && !mockUser && pathname !== "/login") {
       navigate({ to: "/login" });
     }
-  }, [localAgentBypass, ready, session, pathname, navigate]);
+  }, [localAgentBypass, ready, session, mockUser, pathname, navigate]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {ready && (localAgentBypass || session || pathname === "/login") ? <Outlet /> : null}
+      {ready && (localAgentBypass || session || mockUser || pathname === "/login") ? (
+        <Outlet />
+      ) : null}
       <Toaster />
     </QueryClientProvider>
   );

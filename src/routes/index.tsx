@@ -1,12 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Bell, ShoppingBag, Plus, Upload } from "lucide-react";
+import { Search, Bell, ShoppingBag, Plus, Upload, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/sidebar";
 import { AddItemDialog } from "@/components/add-item-dialog";
 import { AvatarUploader } from "@/components/avatar-uploader";
 import { useClosetCatalog } from "@/lib/use-closet";
-import { type ClosetCategory } from "@/lib/closet";
+import { supabase } from "@/integrations/supabase/client";
+import { deleteMockClosetItem, mockOwnerKey, useMockUser } from "@/lib/mock-user";
+import {
+  closetSearchText,
+  closetTagValues,
+  type ClosetCategory,
+  type ClosetItem,
+} from "@/lib/closet";
 
 export const Route = createFileRoute("/")({
   component: Closet,
@@ -16,6 +25,8 @@ type Filter = "All Items" | ClosetCategory;
 const categories: Filter[] = ["All Items", "Tops", "Bottoms", "Dresses", "Shoes", "Outerwear"];
 
 function Closet() {
+  const queryClient = useQueryClient();
+  const mockUser = useMockUser();
   const [active, setActive] = useState<Filter>("All Items");
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -25,12 +36,24 @@ function Closet() {
 
   const filtered = items.filter((i) => {
     const matchCat = active === "All Items" || i.category === active;
-    const matchQuery =
-      !query ||
-      i.name.toLowerCase().includes(query.toLowerCase()) ||
-      i.detail.toLowerCase().includes(query.toLowerCase());
+    const matchQuery = !query || closetSearchText(i).includes(query.toLowerCase());
     return matchCat && matchQuery;
   });
+
+  async function deleteItem(item: ClosetItem) {
+    try {
+      if (mockUser) {
+        deleteMockClosetItem(mockOwnerKey(mockUser), item.id);
+      } else {
+        const { error } = await supabase.from("user_items").delete().eq("id", item.id);
+        if (error) throw error;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["closet-catalog"] });
+      toast.success("Removed from closet");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete item");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-muted/40 flex">
@@ -91,43 +114,19 @@ function Closet() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setDialogOpen(true)}
-            className="flex items-center gap-2 bg-primary text-primary-foreground rounded-md px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="size-4" strokeWidth={2} />
-            Add New
-          </button>
+          <div className="flex items-center gap-2">
+            {avatarUrl && <AvatarUploader src={avatarUrl} label="Upload user photo" />}
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="flex items-center gap-2 bg-primary text-primary-foreground rounded-md px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="size-4" strokeWidth={2} />
+              Add New
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-          {filtered.map((item) => (
-            <article key={item.id} className="group cursor-pointer">
-              <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  width={512}
-                  height={512}
-                  loading="lazy"
-                  className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
-                />
-                {item.badge && (
-                  <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-[10px] font-semibold tracking-wider px-2.5 py-1 rounded">
-                    {item.badge}
-                  </span>
-                )}
-              </div>
-              <div className="mt-3">
-                <h3 className="text-sm font-semibold text-foreground">{item.name}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {item.category}
-                  {item.detail ? ` • ${item.detail}` : ""}
-                </p>
-              </div>
-            </article>
-          ))}
-
           <button onClick={() => setDialogOpen(true)} className="group text-left">
             <div className="aspect-square rounded-lg border-2 border-dashed border-border group-hover:border-foreground/40 group-hover:bg-accent/30 flex flex-col items-center justify-center text-muted-foreground transition-colors">
               <Upload
@@ -143,9 +142,70 @@ function Closet() {
               <p className="text-xs text-muted-foreground mt-0.5">Archive a new piece</p>
             </div>
           </button>
+
+          {filtered.map((item) => (
+            <ClosetItemCard key={item.id} item={item} onDelete={() => deleteItem(item)} />
+          ))}
         </div>
       </main>
       <AddItemDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </div>
+  );
+}
+
+function ClosetItemCard({ item, onDelete }: { item: ClosetItem; onDelete: () => void }) {
+  const tagChips = closetTagValues(item.tags)
+    .filter((tag) => !item.detail.toLowerCase().includes(tag.toLowerCase()))
+    .slice(0, 3);
+
+  return (
+    <article className="group">
+      <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+        <img
+          src={item.image}
+          alt={item.name}
+          width={512}
+          height={512}
+          loading="lazy"
+          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
+        />
+        {item.badge && (
+          <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-[10px] font-semibold tracking-wider px-2.5 py-1 rounded">
+            {item.badge}
+          </span>
+        )}
+        <button
+          type="button"
+          aria-label={`Delete ${item.name}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDelete();
+          }}
+          className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-background/90 text-destructive opacity-100 shadow-sm transition-colors hover:bg-background md:opacity-0 md:group-hover:opacity-100"
+        >
+          <Trash2 className="size-4" strokeWidth={1.75} />
+        </button>
+      </div>
+      <div className="mt-3">
+        <h3 className="text-sm font-semibold text-foreground">{item.name}</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {item.category}
+          {item.detail ? ` • ${item.detail}` : ""}
+        </p>
+        {tagChips.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {tagChips.map((tag) => (
+              <span
+                key={tag}
+                className="rounded bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground border border-border"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </article>
   );
 }

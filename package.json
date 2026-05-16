@@ -1,5 +1,5 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "aura",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -15,6 +15,7 @@
     "@ai-sdk/openai-compatible": "^2.0.47",
     "@ai-sdk/react": "^3.0.184",
     "@cloudflare/vite-plugin": "^1.25.5",
+    "@fal-ai/client": "^1.10.1",
     "@hookform/resolvers": "^5.2.2",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
     "@radix-ui/react-accordion": "^1.2.12",

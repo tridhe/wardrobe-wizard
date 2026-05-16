@@ -1,26 +1,52 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { useClosetCatalog } from "@/lib/use-closet";
 import { imageToDataUrl } from "@/lib/image-to-data-url";
+import { saveGeneratedOutfit } from "@/lib/saved-outfits";
+
+type OutfitCardProps = {
+  ids: string[];
+  eventContext?: string;
+  initialImageUrl?: string | null;
+  saveToOutfits?: boolean;
+  onGenerated?: (imageUrl: string) => void | Promise<void>;
+};
 
 export function OutfitCard({
   ids,
   eventContext,
-}: {
-  ids: string[];
-  eventContext?: string;
-}) {
+  initialImageUrl,
+  saveToOutfits = false,
+  onGenerated,
+}: OutfitCardProps) {
   const { data, isLoading: catalogLoading } = useClosetCatalog();
-  const items = data
-    ? ids
-        .map((id) => data.items.find((c) => c.id === id))
-        .filter((i): i is NonNullable<typeof i> => Boolean(i))
-    : [];
+  const idsKey = ids.join("|");
+  const items = useMemo(
+    () =>
+      data
+        ? idsKey
+            .split("|")
+            .filter(Boolean)
+            .map((id) => data.items.find((c) => c.id === id))
+            .filter((i): i is NonNullable<typeof i> => Boolean(i))
+        : [],
+    [data, idsKey],
+  );
 
-  const [tryonUrl, setTryonUrl] = useState<string | null>(null);
+  const [tryonUrl, setTryonUrl] = useState<string | null>(initialImageUrl ?? null);
   const [tryonLoading, setTryonLoading] = useState(false);
   const [tryonError, setTryonError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const startedRef = useRef(false);
+
+  useEffect(() => {
+    startedRef.current = Boolean(initialImageUrl);
+    setTryonUrl(initialImageUrl ?? null);
+    setTryonError(null);
+    setTryonLoading(false);
+    setSaved(false);
+  }, [idsKey, initialImageUrl]);
 
   useEffect(() => {
     if (startedRef.current || !data || items.length === 0) return;
@@ -29,7 +55,7 @@ export function OutfitCard({
 
     (async () => {
       try {
-        const trimmed = items.slice(0, 4);
+        const trimmed = items.slice(0, 6);
         const [avatarUrl, ...itemUrls] = await Promise.all([
           imageToDataUrl(new URL(data.avatarUrl, window.location.origin).toString(), 768),
           ...trimmed.map((i) =>
@@ -55,13 +81,28 @@ export function OutfitCard({
         if (!res.ok) throw new Error(await res.text());
         const d = (await res.json()) as { imageUrl: string };
         setTryonUrl(d.imageUrl);
+        await onGenerated?.(d.imageUrl);
+        if (saveToOutfits) {
+          await saveGeneratedOutfit({
+            imageUrl: d.imageUrl,
+            items: trimmed.map((item) => ({
+              id: item.id,
+              name: item.name,
+              category: item.category,
+              detail: item.detail,
+              image: item.image,
+            })),
+          });
+          setSaved(true);
+        }
       } catch (err) {
         setTryonError(err instanceof Error ? err.message : "Couldn't generate try-on");
+        toast.error(err instanceof Error ? err.message : "Couldn't generate try-on");
       } finally {
         setTryonLoading(false);
       }
     })();
-  }, [data, items, eventContext]);
+  }, [data, items, eventContext, idsKey, onGenerated, saveToOutfits]);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -87,9 +128,9 @@ export function OutfitCard({
       </div>
       <div className="p-4">
         <p className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground mb-3">
-          The Look
+          {saved ? "Saved to Outfits" : "The Look"}
         </p>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {items.map((item) => (
             <div key={item.id} className="space-y-1.5">
               <div className="aspect-square rounded-md overflow-hidden bg-muted">

@@ -27,7 +27,7 @@ import { Sparkles } from "lucide-react";
 export const Route = createFileRoute("/stylist")({
   head: () => ({
     meta: [
-      { title: "Stylist — Atelier AI" },
+      { title: "Stylist — Aura" },
       { name: "description", content: "Chat with your AI stylist and see yourself in the outfit." },
     ],
   }),
@@ -230,7 +230,7 @@ function StylistPage() {
                 Stylist
               </h2>
               <p className="text-sm text-muted-foreground">
-                Tell Atelier about your event — get dressed from your closet.
+                Tell Aura about your event — get dressed from your closet.
               </p>
             </div>
           </div>
@@ -245,7 +245,9 @@ function StylistPage() {
                 description="Describe the event — a gallery opening, weekend brunch, first date — and I'll style you head to toe."
               />
             ) : (
-              messages.map((m) => <StylistMessage key={m.id} message={m} />)
+              messages.map((m, index) => (
+                <StylistMessage key={m.id} message={m} messages={messages} index={index} />
+              ))
             )}
             {status === "submitted" && (
               <div className="px-2 py-3" data-agent-id="stylist-loading">
@@ -304,7 +306,15 @@ function StylistPage() {
   );
 }
 
-function StylistMessage({ message }: { message: UIMessage }) {
+function StylistMessage({
+  message,
+  messages,
+  index,
+}: {
+  message: UIMessage;
+  messages: UIMessage[];
+  index: number;
+}) {
   const fullText = getMessageText(message);
   const outfitIds = message.role === "assistant" ? extractOutfit(fullText) : null;
   const displayText = outfitIds ? stripOutfitLine(fullText) : fullText;
@@ -323,7 +333,7 @@ function StylistMessage({ message }: { message: UIMessage }) {
         {displayText && <MessageResponse>{displayText}</MessageResponse>}
         {outfitIds && (
           <div className="mt-4" data-agent-id="stylist-outfit-card">
-            <OutfitCard ids={outfitIds} eventContext={getLastUserText(message)} />
+            <OutfitCard ids={outfitIds} eventContext={getLastUserText(messages, index)} />
           </div>
         )}
       </MessageContent>
@@ -331,7 +341,9 @@ function StylistMessage({ message }: { message: UIMessage }) {
   );
 }
 
-// Best-effort: look up the prior user prompt for try-on styling context.
-function getLastUserText(_m: UIMessage): string | undefined {
+function getLastUserText(messages: UIMessage[], index: number): string | undefined {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === "user") return getMessageText(messages[i]);
+  }
   return undefined;
 }

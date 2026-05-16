@@ -12,12 +12,17 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as StylistRouteImport } from './routes/stylist'
 import { Route as StylerRouteImport } from './routes/styler'
+import { Route as OutfitsRouteImport } from './routes/outfits'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InspirationRouteImport } from './routes/inspiration'
+import { Route as CouplesRouteImport } from './routes/couples'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTryonRouteImport } from './routes/api/tryon'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiTodayRouteImport } from './routes/api/today'
 import { Route as ApiTagItemRouteImport } from './routes/api/tag-item'
+import { Route as ApiInspirationRouteImport } from './routes/api/inspiration'
+import { Route as ApiCollabOutfitsRouteImport } from './routes/api/collab-outfits'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const TodayRoute = TodayRouteImport.update({
@@ -35,9 +40,24 @@ const StylerRoute = StylerRouteImport.update({
   path: '/styler',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OutfitsRoute = OutfitsRouteImport.update({
+  id: '/outfits',
+  path: '/outfits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InspirationRoute = InspirationRouteImport.update({
+  id: '/inspiration',
+  path: '/inspiration',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CouplesRoute = CouplesRouteImport.update({
+  id: '/couples',
+  path: '/couples',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +85,16 @@ const ApiTagItemRoute = ApiTagItemRouteImport.update({
   path: '/api/tag-item',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInspirationRoute = ApiInspirationRouteImport.update({
+  id: '/api/inspiration',
+  path: '/api/inspiration',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCollabOutfitsRoute = ApiCollabOutfitsRouteImport.update({
+  id: '/api/collab-outfits',
+  path: '/api/collab-outfits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -73,11 +103,16 @@ const ApiChatRoute = ApiChatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/couples': typeof CouplesRoute
+  '/inspiration': typeof InspirationRoute
   '/login': typeof LoginRoute
+  '/outfits': typeof OutfitsRoute
   '/styler': typeof StylerRoute
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/collab-outfits': typeof ApiCollabOutfitsRoute
+  '/api/inspiration': typeof ApiInspirationRoute
   '/api/tag-item': typeof ApiTagItemRoute
   '/api/today': typeof ApiTodayRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -85,11 +120,16 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/couples': typeof CouplesRoute
+  '/inspiration': typeof InspirationRoute
   '/login': typeof LoginRoute
+  '/outfits': typeof OutfitsRoute
   '/styler': typeof StylerRoute
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/collab-outfits': typeof ApiCollabOutfitsRoute
+  '/api/inspiration': typeof ApiInspirationRoute
   '/api/tag-item': typeof ApiTagItemRoute
   '/api/today': typeof ApiTodayRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -98,11 +138,16 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/couples': typeof CouplesRoute
+  '/inspiration': typeof InspirationRoute
   '/login': typeof LoginRoute
+  '/outfits': typeof OutfitsRoute
   '/styler': typeof StylerRoute
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/collab-outfits': typeof ApiCollabOutfitsRoute
+  '/api/inspiration': typeof ApiInspirationRoute
   '/api/tag-item': typeof ApiTagItemRoute
   '/api/today': typeof ApiTodayRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -112,11 +157,16 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/couples'
+    | '/inspiration'
     | '/login'
+    | '/outfits'
     | '/styler'
     | '/stylist'
     | '/today'
     | '/api/chat'
+    | '/api/collab-outfits'
+    | '/api/inspiration'
     | '/api/tag-item'
     | '/api/today'
     | '/api/transcribe'
@@ -124,11 +174,16 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/couples'
+    | '/inspiration'
     | '/login'
+    | '/outfits'
     | '/styler'
     | '/stylist'
     | '/today'
     | '/api/chat'
+    | '/api/collab-outfits'
+    | '/api/inspiration'
     | '/api/tag-item'
     | '/api/today'
     | '/api/transcribe'
@@ -136,11 +191,16 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/couples'
+    | '/inspiration'
     | '/login'
+    | '/outfits'
     | '/styler'
     | '/stylist'
     | '/today'
     | '/api/chat'
+    | '/api/collab-outfits'
+    | '/api/inspiration'
     | '/api/tag-item'
     | '/api/today'
     | '/api/transcribe'
@@ -149,11 +209,16 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CouplesRoute: typeof CouplesRoute
+  InspirationRoute: typeof InspirationRoute
   LoginRoute: typeof LoginRoute
+  OutfitsRoute: typeof OutfitsRoute
   StylerRoute: typeof StylerRoute
   StylistRoute: typeof StylistRoute
   TodayRoute: typeof TodayRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiCollabOutfitsRoute: typeof ApiCollabOutfitsRoute
+  ApiInspirationRoute: typeof ApiInspirationRoute
   ApiTagItemRoute: typeof ApiTagItemRoute
   ApiTodayRoute: typeof ApiTodayRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
@@ -183,11 +248,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StylerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/outfits': {
+      id: '/outfits'
+      path: '/outfits'
+      fullPath: '/outfits'
+      preLoaderRoute: typeof OutfitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inspiration': {
+      id: '/inspiration'
+      path: '/inspiration'
+      fullPath: '/inspiration'
+      preLoaderRoute: typeof InspirationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/couples': {
+      id: '/couples'
+      path: '/couples'
+      fullPath: '/couples'
+      preLoaderRoute: typeof CouplesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -225,6 +311,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTagItemRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/inspiration': {
+      id: '/api/inspiration'
+      path: '/api/inspiration'
+      fullPath: '/api/inspiration'
+      preLoaderRoute: typeof ApiInspirationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/collab-outfits': {
+      id: '/api/collab-outfits'
+      path: '/api/collab-outfits'
+      fullPath: '/api/collab-outfits'
+      preLoaderRoute: typeof ApiCollabOutfitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -237,11 +337,16 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CouplesRoute: CouplesRoute,
+  InspirationRoute: InspirationRoute,
   LoginRoute: LoginRoute,
+  OutfitsRoute: OutfitsRoute,
   StylerRoute: StylerRoute,
   StylistRoute: StylistRoute,
   TodayRoute: TodayRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiCollabOutfitsRoute: ApiCollabOutfitsRoute,
+  ApiInspirationRoute: ApiInspirationRoute,
   ApiTagItemRoute: ApiTagItemRoute,
   ApiTodayRoute: ApiTodayRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,

@@ -1,14 +1,17 @@
-import itemCoat from "@/assets/item-coat.jpg";
-import itemDress from "@/assets/item-dress.jpg";
-import itemSneaker from "@/assets/item-sneaker.jpg";
-import itemKnit from "@/assets/item-knit.jpg";
-import itemDenim from "@/assets/item-denim.jpg";
-import itemShirt from "@/assets/item-shirt.jpg";
-import itemBlazer from "@/assets/item-blazer.jpg";
-import itemTrousers from "@/assets/item-trousers.jpg";
-import itemBoot from "@/assets/item-boot.jpg";
-
 export type ClosetCategory = "Tops" | "Bottoms" | "Dresses" | "Shoes" | "Outerwear";
+
+export interface ClosetTags {
+  color?: string;
+  garmentType?: string;
+  fit?: string;
+  material?: string;
+  pattern?: string;
+  silhouette?: string;
+  formality?: string;
+  season?: string[];
+  occasions?: string[];
+  styleTags?: string[];
+}
 
 export interface ClosetItem {
   id: string;
@@ -16,21 +19,28 @@ export interface ClosetItem {
   category: ClosetCategory;
   detail: string;
   image: string;
+  tags?: ClosetTags;
   badge?: string;
 }
 
-export const closetItems: ClosetItem[] = [
-  { id: "coat", name: "Wool Tailored Coat", category: "Outerwear", detail: "Charcoal Gray", image: itemCoat, badge: "AI RECOMMENDED" },
-  { id: "dress", name: "Silk Slip Dress", category: "Dresses", detail: "Onyx Black", image: itemDress },
-  { id: "sneaker", name: "Pristine Sneaker", category: "Shoes", detail: "Optic White", image: itemSneaker },
-  { id: "knit", name: "Oatmeal Knit", category: "Tops", detail: "Beige", image: itemKnit },
-  { id: "denim", name: "Straight Leg Denim", category: "Bottoms", detail: "Indigo", image: itemDenim },
-  { id: "shirt", name: "Poplin Shirt", category: "Tops", detail: "White", image: itemShirt },
-  { id: "blazer", name: "Evening Blazer", category: "Outerwear", detail: "Black", image: itemBlazer },
-  { id: "trousers", name: "Wide Leg Trousers", category: "Bottoms", detail: "Camel", image: itemTrousers },
-  { id: "boot", name: "Chelsea Boot", category: "Shoes", detail: "Matte Black", image: itemBoot },
-];
+export function closetTagValues(tags?: ClosetTags): string[] {
+  if (!tags) return [];
+  return [
+    tags.color,
+    tags.garmentType,
+    tags.fit,
+    tags.material,
+    tags.pattern,
+    tags.silhouette,
+    tags.formality,
+    ...(tags.season ?? []),
+    ...(tags.occasions ?? []),
+    ...(tags.styleTags ?? []),
+  ].filter((value): value is string => Boolean(value?.trim()));
+}
 
-export const closetCatalogForPrompt = closetItems
-  .map((i) => `- id:${i.id} | ${i.name} (${i.category}, ${i.detail})`)
-  .join("\n");
+export function closetSearchText(item: ClosetItem): string {
+  return [item.name, item.category, item.detail, ...closetTagValues(item.tags)]
+    .join(" ")
+    .toLowerCase();
+}

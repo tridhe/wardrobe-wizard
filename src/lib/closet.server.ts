@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { closetItems, type ClosetItem, type ClosetCategory } from "./closet";
+import type { ClosetTags } from "./closet";
 
 function getServerSupabase() {
   const url = process.env.SUPABASE_URL!;
@@ -13,7 +13,13 @@ export interface CatalogEntry {
   category: string;
   detail: string;
   imageUrl: string;
-  source: "static" | "user";
+  tags: ClosetTags;
+  source: "user";
+}
+
+function parseTags(value: unknown): ClosetTags {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as ClosetTags;
 }
 
 export async function loadFullCatalog(): Promise<{
@@ -23,11 +29,7 @@ export async function loadFullCatalog(): Promise<{
   const supabase = getServerSupabase();
   const [itemsRes, settingsRes] = await Promise.all([
     supabase.from("user_items").select("*").order("created_at", { ascending: false }),
-    supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "avatar_url")
-      .maybeSingle(),
+    supabase.from("app_settings").select("value").eq("key", "avatar_url").maybeSingle(),
   ]);
 
   const userEntries: CatalogEntry[] = (itemsRes.data ?? []).map((r) => ({
@@ -36,26 +38,34 @@ export async function loadFullCatalog(): Promise<{
     category: r.category as string,
     detail: r.detail as string,
     imageUrl: r.image_url as string,
+    tags: parseTags(r.tags),
     source: "user",
   }));
 
-  const staticEntries: CatalogEntry[] = closetItems.map((i: ClosetItem) => ({
-    id: i.id,
-    name: i.name,
-    category: i.category as ClosetCategory,
-    detail: i.detail,
-    imageUrl: i.image, // imported asset URL (relative in dev/prod)
-    source: "static",
-  }));
-
   return {
-    catalog: [...userEntries, ...staticEntries],
+    catalog: userEntries,
     avatarUrl: (settingsRes.data?.value as string | undefined) ?? null,
   };
 }
 
 export function formatCatalogForPrompt(catalog: CatalogEntry[]): string {
   return catalog
-    .map((i) => `- id:${i.id} | ${i.name} (${i.category}, ${i.detail})`)
+    .map((i) => {
+      const tags = [
+        i.tags.color,
+        i.tags.garmentType,
+        i.tags.fit,
+        i.tags.material,
+        i.tags.pattern,
+        i.tags.silhouette,
+        i.tags.formality,
+        ...(i.tags.season ?? []),
+        ...(i.tags.occasions ?? []),
+        ...(i.tags.styleTags ?? []),
+      ]
+        .filter(Boolean)
+        .join(", ");
+      return `- id:${i.id} | ${i.name} | category:${i.category} | detail:${i.detail}${tags ? ` | tags:${tags}` : ""}`;
+    })
     .join("\n");
 }

@@ -17,25 +17,68 @@ interface PlannedEvent {
   location?: string;
   start: string | null;
   end: string | null;
+  variants: OutfitVariant[];
+}
+
+interface OutfitVariant {
+  id: string;
+  label: string;
   rationale: string;
   outfitIds: string[];
 }
 
-function parseOutfit(text: string, validIds: Set<string>) {
+async function checkGoogleCalendar(googleToken: string) {
+  const res = await fetch(
+    "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1",
+    {
+      headers: { Authorization: `Bearer ${googleToken}` },
+    },
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Google Calendar error [${res.status}]: ${err}`);
+  }
+  return res.json();
+}
+
+function parseVariants(text: string, validIds: Set<string>): OutfitVariant[] {
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]) as {
-        rationale?: string;
-        outfit?: string[];
+        variants?: Array<{
+          label?: string;
+          rationale?: string;
+          outfit?: string[];
+        }>;
       };
-      const ids = (parsed.outfit ?? []).map((s) => String(s).trim()).filter((s) => validIds.has(s));
-      if (ids.length) return { rationale: parsed.rationale?.trim() ?? "", ids };
+      const variants = (parsed.variants ?? [])
+        .map((variant, index) => {
+          const ids = (variant.outfit ?? [])
+            .map((s) => String(s).trim())
+            .filter((s) => validIds.has(s));
+          return {
+            id: `variant-${index + 1}`,
+            label: variant.label?.trim() || `Option ${index + 1}`,
+            rationale: variant.rationale?.trim() ?? "",
+            outfitIds: ids,
+          };
+        })
+        .filter((variant) => variant.outfitIds.length > 0)
+        .slice(0, 3);
+      if (variants.length) return variants;
     } catch {
       /* ignore */
     }
   }
-  return { rationale: text.trim().slice(0, 280), ids: [] };
+  return [
+    {
+      id: "variant-1",
+      label: "Option 1",
+      rationale: text.trim().slice(0, 280),
+      outfitIds: [],
+    },
+  ];
 }
 
 async function fetchTodaysEvents(googleToken: string): Promise<GCalEvent[]> {
@@ -72,13 +115,15 @@ When: ${when}
 Location: ${event.location ?? "—"}
 Notes: ${event.description ?? "—"}
 
-Pick ONE outfit from the closet for this event.
+Pick THREE distinct outfit variants from the closet for this event.
 
 Closet:
 ${formatCatalogForPrompt(catalog)}
 
-Respond with ONLY a JSON object: {"rationale": "1-2 sentences", "outfit": ["id1","id2","id3"]}
-Use 2-4 ids. Only ids from the closet list.`;
+Respond with ONLY a JSON object:
+{"variants":[{"label":"Polished","rationale":"1 short sentence","outfit":["id1","id2","id3"]},{"label":"Relaxed","rationale":"1 short sentence","outfit":["id4","id5"]},{"label":"Statement","rationale":"1 short sentence","outfit":["id1","id6","id7"]}]}
+
+Each variant should use 1-6 ids. A dress can stand in for top plus bottom. Only ids from the closet list.`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -91,7 +136,7 @@ Use 2-4 ids. Only ids from the closet list.`;
       messages: [
         {
           role: "system",
-          content: "You are Atelier, an expert personal stylist. Respond with strict JSON only.",
+          content: "You are Aura, an expert personal stylist. Respond with strict JSON only.",
         },
         { role: "user", content: userPrompt },
       ],
@@ -102,17 +147,14 @@ Use 2-4 ids. Only ids from the closet list.`;
     choices?: Array<{ message?: { content?: string } }>;
   };
   const text = data.choices?.[0]?.message?.content ?? "";
-  return parseOutfit(text, new Set(catalog.map((c) => c.id)));
+  return parseVariants(text, new Set(catalog.map((c) => c.id)));
 }
 
 export const Route = createFileRoute("/api/today")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const openAiKey = process.env.OPENAI_API_KEY;
-        if (!openAiKey) return new Response("Missing OPENAI_API_KEY", { status: 500 });
-
-        let body: { providerToken?: string };
+        let body: { providerToken?: string; checkOnly?: boolean };
         try {
           body = await request.json();
         } catch {
@@ -126,21 +168,28 @@ export const Route = createFileRoute("/api/today")({
         }
 
         try {
+          if (body.checkOnly) {
+            await checkGoogleCalendar(googleToken);
+            return Response.json({ ok: true });
+          }
+
+          const openAiKey = process.env.OPENAI_API_KEY;
+          if (!openAiKey) return new Response("Missing OPENAI_API_KEY", { status: 500 });
+
           const [events, { catalog }] = await Promise.all([
             fetchTodaysEvents(googleToken),
             loadFullCatalog(),
           ]);
           const planned: PlannedEvent[] = await Promise.all(
             events.map(async (ev) => {
-              const { rationale, ids } = await planOutfit(openAiKey, ev, catalog);
+              const variants = await planOutfit(openAiKey, ev, catalog);
               return {
                 id: ev.id,
                 summary: ev.summary ?? "Untitled event",
                 location: ev.location,
                 start: ev.start?.dateTime ?? ev.start?.date ?? null,
                 end: ev.end?.dateTime ?? ev.end?.date ?? null,
-                rationale,
-                outfitIds: ids,
+                variants,
               };
             }),
           );

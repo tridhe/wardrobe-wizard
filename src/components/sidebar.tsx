@@ -1,25 +1,44 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { Compass, Sparkles, Check, Shirt, Calendar, Wand2, LogOut } from "lucide-react";
+import {
+  Compass,
+  Sparkles,
+  Check,
+  Shirt,
+  Calendar,
+  Wand2,
+  LogOut,
+  Camera,
+  Users,
+  UserRound,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { clearMockUser, mockUsers, setMockUser, useMockUser } from "@/lib/mock-user";
 
 type NavItem =
-  | { label: string; icon: typeof Compass; to: "/" | "/stylist" | "/today" | "/styler" }
+  | {
+      label: string;
+      icon: typeof Compass;
+      to: "/" | "/stylist" | "/today" | "/styler" | "/outfits" | "/inspiration" | "/couples";
+    }
   | { label: string; icon: typeof Compass; disabled: true };
 
 const navItems: NavItem[] = [
-  { label: "Discovery", icon: Compass, disabled: true },
   { label: "Today", icon: Calendar, to: "/today" },
+  { label: "Inspiration", icon: Camera, to: "/inspiration" },
+  { label: "Collaborate", icon: Users, to: "/couples" },
   { label: "Stylist", icon: Sparkles, to: "/stylist" },
   { label: "Styler", icon: Wand2, to: "/styler" },
   { label: "Closet", icon: Check, to: "/" },
-  { label: "Outfits", icon: Shirt, disabled: true },
+  { label: "Outfits", icon: Shirt, to: "/outfits" },
 ];
 
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const mockUser = useMockUser();
   const signOut = async () => {
+    clearMockUser();
     await supabase.auth.signOut();
     navigate({ to: "/login" });
   };
@@ -29,9 +48,9 @@ export function Sidebar() {
       {/* Desktop / tablet sidebar */}
       <aside className="hidden md:flex w-64 shrink-0 border-r border-border bg-background flex-col p-6">
         <div className="mb-10">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">Atelier AI</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">Aura</h1>
           <p className="text-[10px] font-medium tracking-[0.18em] text-muted-foreground mt-0.5">
-            DIGITAL ATELIER
+            PERSONAL STYLE AI
           </p>
         </div>
         <nav className="flex flex-col gap-1 flex-1">
@@ -68,6 +87,30 @@ export function Sidebar() {
             );
           })}
         </nav>
+        <div className="mb-4 rounded-lg border border-border bg-muted/30 p-3">
+          <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <UserRound className="size-3.5" />
+            Demo user
+          </div>
+          <select
+            value={mockUser?.id ?? ""}
+            onChange={(event) => {
+              if (event.target.value) {
+                setMockUser(event.target.value);
+              } else {
+                clearMockUser();
+              }
+            }}
+            className="w-full rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground outline-none"
+          >
+            <option value="">Real login</option>
+            {mockUsers.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={signOut}
           className="flex items-center justify-center gap-2 border border-border text-foreground rounded-md py-2.5 text-sm font-medium hover:bg-accent transition-colors"
