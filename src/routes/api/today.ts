@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
-import { closetCatalogForPrompt, closetItems } from "@/lib/closet";
+import { loadFullCatalog, formatCatalogForPrompt, type CatalogEntry } from "@/lib/closet.server";
 
 const CALENDAR_GATEWAY =
   "https://connector-gateway.lovable.dev/google_calendar/calendar/v3";
@@ -24,10 +24,10 @@ interface PlannedEvent {
   outfitIds: string[];
 }
 
-const validIds = new Set(closetItems.map((c) => c.id));
-
-function parseOutfit(text: string): { rationale: string; ids: string[] } {
-  // Try JSON
+function parseOutfit(
+  text: string,
+  validIds: Set<string>,
+): { rationale: string; ids: string[] } {
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
@@ -36,7 +36,7 @@ function parseOutfit(text: string): { rationale: string; ids: string[] } {
         outfit?: string[];
       };
       const ids = (parsed.outfit ?? [])
-        .map((s) => String(s).trim().toLowerCase())
+        .map((s) => String(s).trim())
         .filter((s) => validIds.has(s));
       if (ids.length) {
         return { rationale: parsed.rationale?.trim() ?? "", ids };
@@ -86,6 +86,7 @@ async function fetchTodaysEvents(
 async function planOutfit(
   lovableKey: string,
   event: GCalEvent,
+  catalog: CatalogEntry[],
 ): Promise<{ rationale: string; ids: string[] }> {
   const when = event.start?.dateTime ?? event.start?.date ?? "";
   const userPrompt = `Event: ${event.summary ?? "Untitled"}
@@ -96,7 +97,7 @@ Notes: ${event.description ?? "—"}
 Pick ONE outfit from the closet for this event.
 
 Closet:
-${closetCatalogForPrompt}
+${formatCatalogForPrompt(catalog)}
 
 Respond with ONLY a JSON object, no markdown, in this exact shape:
 {"rationale": "1-2 sentences explaining the look", "outfit": ["id1", "id2", "id3"]}
@@ -128,7 +129,8 @@ Use 2-4 ids. Only use ids that appear in the closet list above.`;
     choices?: Array<{ message?: { content?: string } }>;
   };
   const text = data.choices?.[0]?.message?.content ?? "";
-  return parseOutfit(text);
+  const validIds = new Set(catalog.map((c) => c.id));
+  return parseOutfit(text, validIds);
 }
 
 export const Route = createFileRoute("/api/today")({
@@ -145,10 +147,13 @@ export const Route = createFileRoute("/api/today")({
         }
 
         try {
-          const events = await fetchTodaysEvents(lovableKey, connKey);
+          const [events, { catalog }] = await Promise.all([
+            fetchTodaysEvents(lovableKey, connKey),
+            loadFullCatalog(),
+          ]);
           const planned: PlannedEvent[] = await Promise.all(
             events.map(async (ev) => {
-              const { rationale, ids } = await planOutfit(lovableKey, ev);
+              const { rationale, ids } = await planOutfit(lovableKey, ev, catalog);
               return {
                 id: ev.id,
                 summary: ev.summary ?? "Untitled event",
