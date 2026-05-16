@@ -156,7 +156,7 @@ function EventBlock({ event }: { event: PlannedEvent }) {
             ? ` – ${formatTime(event.end)}`
             : ""}
         </p>
-        <h3 className="text-2xl font-bold tracking-tight text-foreground">
+        <h3 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
           {event.summary}
         </h3>
         {event.location && (
