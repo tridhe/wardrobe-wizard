@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { useClosetCatalog } from "@/lib/use-closet";
+import { imageToDataUrl } from "@/lib/image-to-data-url";
 
 export function OutfitCard({
   ids,
@@ -26,28 +27,40 @@ export function OutfitCard({
     startedRef.current = true;
     setTryonLoading(true);
 
-    const payload = {
-      items: items.map((i) => ({
-        name: i.name,
-        detail: i.detail,
-        imageUrl: new URL(i.image, window.location.origin).toString(),
-      })),
-      avatarUrl: new URL(data.avatarUrl, window.location.origin).toString(),
-      eventContext,
-    };
+    (async () => {
+      try {
+        const trimmed = items.slice(0, 4);
+        const [avatarUrl, ...itemUrls] = await Promise.all([
+          imageToDataUrl(new URL(data.avatarUrl, window.location.origin).toString(), 768),
+          ...trimmed.map((i) =>
+            imageToDataUrl(new URL(i.image, window.location.origin).toString(), 512),
+          ),
+        ]);
 
-    fetch("/api/tryon", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-      .then(async (res) => {
+        const payload = {
+          items: trimmed.map((i, idx) => ({
+            name: i.name,
+            detail: i.detail,
+            imageUrl: itemUrls[idx],
+          })),
+          avatarUrl,
+          eventContext,
+        };
+
+        const res = await fetch("/api/tryon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
         if (!res.ok) throw new Error(await res.text());
-        return res.json() as Promise<{ imageUrl: string }>;
-      })
-      .then((d) => setTryonUrl(d.imageUrl))
-      .catch((err) => setTryonError(err.message || "Couldn't generate try-on"))
-      .finally(() => setTryonLoading(false));
+        const d = (await res.json()) as { imageUrl: string };
+        setTryonUrl(d.imageUrl);
+      } catch (err) {
+        setTryonError(err instanceof Error ? err.message : "Couldn't generate try-on");
+      } finally {
+        setTryonLoading(false);
+      }
+    })();
   }, [data, items, eventContext]);
 
   return (

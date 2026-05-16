@@ -2,18 +2,26 @@ import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { z } from "zod";
 
+const imageRef = z
+  .string()
+  .min(1)
+  .refine(
+    (s) => s.startsWith("data:image/") || /^https?:\/\//.test(s) || s.startsWith("/"),
+    "Must be a data URL, absolute URL, or root-relative path",
+  );
+
 const BodySchema = z.object({
   items: z
     .array(
       z.object({
         name: z.string().min(1).max(200),
         detail: z.string().max(200).default(""),
-        imageUrl: z.string().url(),
+        imageUrl: imageRef,
       }),
     )
     .min(1)
     .max(6),
-  avatarUrl: z.string().url(),
+  avatarUrl: imageRef,
   eventContext: z.string().max(500).optional(),
 });
 
@@ -26,7 +34,8 @@ export const Route = createFileRoute("/api/tryon")({
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
         const base = new URL(request.url);
-        const resolve = (u: string) => new URL(u, base).toString();
+        const resolve = (u: string) =>
+          u.startsWith("data:") ? u : new URL(u, base).toString();
 
         // Cap outfit pieces to keep token budget under the model's 32k limit.
         const items = body.items.slice(0, 4);
