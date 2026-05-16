@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
-import { closetCatalogForPrompt, closetItems } from "@/lib/closet";
+import { loadFullCatalog, formatCatalogForPrompt, type CatalogEntry } from "@/lib/closet.server";
 
 const CALENDAR_GATEWAY =
   "https://connector-gateway.lovable.dev/google_calendar/calendar/v3";
