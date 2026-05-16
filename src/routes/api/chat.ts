@@ -32,11 +32,12 @@ export const Route = createFileRoute("/api/chat")({
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
+        const { catalog } = await loadFullCatalog();
         const gateway = createLovableAiGatewayProvider(key);
         const model = gateway("google/gemini-3-flash-preview");
         const result = streamText({
           model,
-          system: SYSTEM,
+          system: buildSystem(formatCatalogForPrompt(catalog)),
           messages: await convertToModelMessages(messages as UIMessage[]),
         });
         return result.toUIMessageStreamResponse({ originalMessages: messages as UIMessage[] });
