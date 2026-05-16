@@ -29,8 +29,21 @@ export const Route = createFileRoute("/today")({
   component: TodayPage,
 });
 
+import { supabase } from "@/integrations/supabase/client";
+
 async function fetchToday(): Promise<{ events: PlannedEvent[] }> {
-  const res = await fetch("/api/today");
+  const { data } = await supabase.auth.getSession();
+  const providerToken = data.session?.provider_token;
+  if (!providerToken) {
+    throw new Error(
+      "Google Calendar access expired. Please sign out and sign in again with Google.",
+    );
+  }
+  const res = await fetch("/api/today", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ providerToken }),
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

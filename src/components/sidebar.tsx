@@ -1,6 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Compass, Sparkles, Check, Shirt, Calendar, Wand2 } from "lucide-react";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Compass, Sparkles, Check, Shirt, Calendar, Wand2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 type NavItem =
   | { label: string; icon: typeof Compass; to: "/" | "/stylist" | "/today" | "/styler" }
@@ -17,6 +18,11 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/login" });
+  };
 
   return (
     <>
@@ -61,8 +67,12 @@ export function Sidebar() {
             );
           })}
         </nav>
-        <button className="bg-primary text-primary-foreground rounded-md py-3 text-sm font-medium hover:bg-primary/90 transition-colors">
-          Book Consultation
+        <button
+          onClick={signOut}
+          className="flex items-center justify-center gap-2 border border-border text-foreground rounded-md py-2.5 text-sm font-medium hover:bg-accent transition-colors"
+        >
+          <LogOut className="size-4" strokeWidth={1.75} />
+          Sign out
         </button>
       </aside>
 
