@@ -34,7 +34,8 @@ export const Route = createFileRoute("/api/tryon")({
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
         const base = new URL(request.url);
-        const resolve = (u: string) => new URL(u, base).toString();
+        const resolve = (u: string) =>
+          u.startsWith("data:") ? u : new URL(u, base).toString();
 
         // Cap outfit pieces to keep token budget under the model's 32k limit.
         const items = body.items.slice(0, 4);
