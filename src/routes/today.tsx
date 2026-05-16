@@ -62,33 +62,35 @@ function TodayPage() {
   return (
     <div className="min-h-screen bg-muted/40 flex">
       <Sidebar />
-      <main className="flex-1 flex flex-col">
-        <header className="px-10 pt-10 pb-6 border-b border-border bg-background">
-          <div className="flex items-center justify-between gap-4">
+      <main className="flex-1 flex flex-col min-w-0 pb-20 md:pb-0">
+        <header className="px-4 pt-6 pb-4 md:px-10 md:pt-10 md:pb-6 border-b border-border bg-background">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+              <div className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                 <Calendar className="size-5" strokeWidth={1.75} />
               </div>
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="min-w-0">
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
                   Today
                 </h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground truncate">
                   {today} — your schedule, styled.
                 </p>
               </div>
             </div>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => refetch()}
               disabled={isFetching}
+              className="self-start sm:self-auto"
             >
               {isFetching ? "Re-planning…" : "Re-plan day"}
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 px-10 py-8">
+        <div className="flex-1 px-4 py-6 md:px-10 md:py-8">
           <div className="max-w-4xl mx-auto">
             {isLoading && (
               <div className="py-16 flex flex-col items-center gap-3 text-muted-foreground">
@@ -154,7 +156,7 @@ function EventBlock({ event }: { event: PlannedEvent }) {
             ? ` – ${formatTime(event.end)}`
             : ""}
         </p>
-        <h3 className="text-2xl font-bold tracking-tight text-foreground">
+        <h3 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
           {event.summary}
         </h3>
         {event.location && (
