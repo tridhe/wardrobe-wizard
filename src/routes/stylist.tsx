@@ -72,14 +72,14 @@ function StylistPage() {
   return (
     <div className="min-h-screen bg-muted/40 flex">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen">
-        <header className="px-10 pt-10 pb-6 border-b border-border bg-background">
+      <main className="flex-1 flex flex-col h-screen min-w-0 pb-16 md:pb-0">
+        <header className="px-4 pt-6 pb-4 md:px-10 md:pt-10 md:pb-6 border-b border-border bg-background">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+            <div className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
               <Sparkles className="size-5" strokeWidth={1.75} />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">Stylist</h2>
+            <div className="min-w-0">
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">Stylist</h2>
               <p className="text-sm text-muted-foreground">
                 Tell Atelier about your event — get dressed from your closet.
               </p>
@@ -88,7 +88,7 @@ function StylistPage() {
         </header>
 
         <Conversation className="flex-1">
-          <ConversationContent className="max-w-3xl mx-auto w-full px-6 py-8">
+          <ConversationContent className="max-w-3xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
             {messages.length === 0 ? (
               <ConversationEmptyState
                 icon={<Sparkles className="size-6" strokeWidth={1.5} />}
@@ -107,7 +107,7 @@ function StylistPage() {
           <ConversationScrollButton />
         </Conversation>
 
-        <div className="border-t border-border bg-background p-6">
+        <div className="border-t border-border bg-background p-4 md:p-6">
           <div className="max-w-3xl mx-auto">
             <PromptInput
               onSubmit={(message) => {
