@@ -171,11 +171,13 @@ function Closet() {
           ))}
 
           {/* Upload tile */}
-          <button className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-foreground/40 hover:bg-accent/30 flex flex-col items-center justify-center text-muted-foreground transition-colors group">
-            <Upload className="size-6 mb-2 group-hover:text-foreground transition-colors" strokeWidth={1.5} />
-            <span className="text-[10px] font-semibold tracking-wider uppercase">Upload Image</span>
-            <div className="mt-auto pb-3">
-              <p className="text-sm font-semibold text-foreground">New Item</p>
+          <button className="group text-left">
+            <div className="aspect-square rounded-lg border-2 border-dashed border-border group-hover:border-foreground/40 group-hover:bg-accent/30 flex flex-col items-center justify-center text-muted-foreground transition-colors">
+              <Upload className="size-6 mb-2 group-hover:text-foreground transition-colors" strokeWidth={1.5} />
+              <span className="text-[10px] font-semibold tracking-wider uppercase">Upload Image</span>
+            </div>
+            <div className="mt-3">
+              <h3 className="text-sm font-semibold text-foreground">New Item</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Archive a new piece</p>
             </div>
           </button>
