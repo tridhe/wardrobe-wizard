@@ -147,10 +147,13 @@ export const Route = createFileRoute("/api/today")({
         }
 
         try {
-          const events = await fetchTodaysEvents(lovableKey, connKey);
+          const [events, { catalog }] = await Promise.all([
+            fetchTodaysEvents(lovableKey, connKey),
+            loadFullCatalog(),
+          ]);
           const planned: PlannedEvent[] = await Promise.all(
             events.map(async (ev) => {
-              const { rationale, ids } = await planOutfit(lovableKey, ev);
+              const { rationale, ids } = await planOutfit(lovableKey, ev, catalog);
               return {
                 id: ev.id,
                 summary: ev.summary ?? "Untitled event",
