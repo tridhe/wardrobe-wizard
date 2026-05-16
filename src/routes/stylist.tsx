@@ -66,10 +66,67 @@ function StylistPage() {
 
   const isLoading = status === "submitted" || status === "streaming";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (!isLoading) textareaRef.current?.focus();
   }, [isLoading]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+        setIsTranscribing(true);
+        try {
+          const fd = new FormData();
+          fd.append("file", blob, "audio.webm");
+          const res = await fetch("/api/transcribe", { method: "POST", body: fd });
+          if (!res.ok) throw new Error((await res.json()).error || "Transcription failed");
+          const { text } = (await res.json()) as { text: string };
+          if (text && textareaRef.current) {
+            const el = textareaRef.current;
+            const current = el.value;
+            const next = current ? `${current} ${text}` : text;
+            const setter = Object.getOwnPropertyDescriptor(
+              window.HTMLTextAreaElement.prototype,
+              "value"
+            )?.set;
+            setter?.call(el, next);
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+            el.focus();
+          } else if (!text) {
+            toast.error("Didn't catch that — try again.");
+          }
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Transcription failed");
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+      recorderRef.current = mr;
+      mr.start();
+      setIsRecording(true);
+    } catch {
+      toast.error("Microphone access denied.");
+    }
+  };
+
+  const stopRecording = () => {
+    recorderRef.current?.stop();
+    recorderRef.current = null;
+    setIsRecording(false);
+  };
+
 
   return (
     <div className="min-h-screen bg-muted/40 flex">
