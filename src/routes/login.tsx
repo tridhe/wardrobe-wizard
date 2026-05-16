@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,22 +24,16 @@ function LoginPage() {
 
   const signIn = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/today`,
-        scopes:
-          "openid email profile https://www.googleapis.com/auth/calendar.readonly",
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
-      },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}/today`,
     });
-    if (error) {
-      toast.error(error.message);
+    if (result.error) {
+      toast.error(result.error.message ?? "Sign in failed");
       setLoading(false);
+      return;
     }
+    if (result.redirected) return;
+    navigate({ to: "/today" });
   };
 
   return (
@@ -54,8 +49,7 @@ function LoginPage() {
           Digital Atelier
         </p>
         <p className="mt-6 text-sm text-muted-foreground">
-          Sign in with Google to style your day. We'll read your calendar to
-          plan looks for every event.
+          Sign in with Google to style your day.
         </p>
         <button
           onClick={signIn}
@@ -66,7 +60,7 @@ function LoginPage() {
           {loading ? "Redirecting…" : "Continue with Google"}
         </button>
         <p className="mt-6 text-[11px] text-muted-foreground">
-          We request read-only access to your Google Calendar.
+          One-tap secure sign in via Google.
         </p>
       </div>
     </div>
