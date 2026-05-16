@@ -3,8 +3,10 @@ import { useState } from "react";
 import { Search, Bell, ShoppingBag, Plus, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/sidebar";
-import { closetItems, type ClosetCategory } from "@/lib/closet";
-import avatar from "@/assets/avatar.jpg";
+import { AddItemDialog } from "@/components/add-item-dialog";
+import { AvatarUploader } from "@/components/avatar-uploader";
+import { useClosetCatalog } from "@/lib/use-closet";
+import { type ClosetCategory } from "@/lib/closet";
 
 export const Route = createFileRoute("/")({
   component: Closet,
@@ -16,8 +18,12 @@ const categories: Filter[] = ["All Items", "Tops", "Bottoms", "Dresses", "Shoes"
 function Closet() {
   const [active, setActive] = useState<Filter>("All Items");
   const [query, setQuery] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { data } = useClosetCatalog();
+  const items = data?.items ?? [];
+  const avatarUrl = data?.avatarUrl ?? "";
 
-  const filtered = closetItems.filter((i) => {
+  const filtered = items.filter((i) => {
     const matchCat = active === "All Items" || i.category === active;
     const matchQuery =
       !query ||
@@ -56,14 +62,7 @@ function Closet() {
             <button className="size-9 rounded-full hover:bg-accent flex items-center justify-center text-muted-foreground transition-colors">
               <ShoppingBag className="size-4" strokeWidth={1.75} />
             </button>
-            <img
-              src={avatar}
-              alt="Profile"
-              width={36}
-              height={36}
-              className="size-9 rounded-full object-cover"
-              loading="lazy"
-            />
+            {avatarUrl && <AvatarUploader src={avatarUrl} />}
           </div>
         </header>
 
@@ -84,7 +83,10 @@ function Closet() {
               </button>
             ))}
           </div>
-          <button className="flex items-center gap-2 bg-primary text-primary-foreground rounded-md px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors">
+          <button
+            onClick={() => setDialogOpen(true)}
+            className="flex items-center gap-2 bg-primary text-primary-foreground rounded-md px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
             <Plus className="size-4" strokeWidth={2} />
             Add New
           </button>
@@ -111,13 +113,14 @@ function Closet() {
               <div className="mt-3">
                 <h3 className="text-sm font-semibold text-foreground">{item.name}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {item.category} • {item.detail}
+                  {item.category}
+                  {item.detail ? ` • ${item.detail}` : ""}
                 </p>
               </div>
             </article>
           ))}
 
-          <button className="group text-left">
+          <button onClick={() => setDialogOpen(true)} className="group text-left">
             <div className="aspect-square rounded-lg border-2 border-dashed border-border group-hover:border-foreground/40 group-hover:bg-accent/30 flex flex-col items-center justify-center text-muted-foreground transition-colors">
               <Upload
                 className="size-6 mb-2 group-hover:text-foreground transition-colors"
@@ -134,6 +137,7 @@ function Closet() {
           </button>
         </div>
       </main>
+      <AddItemDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </div>
   );
 }
