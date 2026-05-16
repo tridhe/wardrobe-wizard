@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as StylistRouteImport } from './routes/stylist'
+import { Route as StylerRouteImport } from './routes/styler'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTryonRouteImport } from './routes/api/tryon'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
@@ -25,6 +26,11 @@ const TodayRoute = TodayRouteImport.update({
 const StylistRoute = StylistRouteImport.update({
   id: '/stylist',
   path: '/stylist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StylerRoute = StylerRouteImport.update({
+  id: '/styler',
+  path: '/styler',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -55,6 +61,7 @@ const ApiChatRoute = ApiChatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/styler': typeof StylerRoute
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/styler': typeof StylerRoute
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/styler': typeof StylerRoute
   '/stylist': typeof StylistRoute
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/styler'
     | '/stylist'
     | '/today'
     | '/api/chat'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/styler'
     | '/stylist'
     | '/today'
     | '/api/chat'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/styler'
     | '/stylist'
     | '/today'
     | '/api/chat'
@@ -113,6 +125,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  StylerRoute: typeof StylerRoute
   StylistRoute: typeof StylistRoute
   TodayRoute: typeof TodayRoute
   ApiChatRoute: typeof ApiChatRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/stylist'
       fullPath: '/stylist'
       preLoaderRoute: typeof StylistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/styler': {
+      id: '/styler'
+      path: '/styler'
+      fullPath: '/styler'
+      preLoaderRoute: typeof StylerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -177,6 +197,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  StylerRoute: StylerRoute,
   StylistRoute: StylistRoute,
   TodayRoute: TodayRoute,
   ApiChatRoute: ApiChatRoute,
