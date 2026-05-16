@@ -53,7 +53,7 @@ function TodayPage() {
     refetchOnWindowFocus: false,
   });
 
-  const today = new Date().toLocaleDateString(undefined, {
+  const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
