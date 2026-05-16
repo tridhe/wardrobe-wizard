@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StylistRouteImport } from './routes/stylist'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTryonRouteImport } from './routes/api/tryon'
+import { Route as ApiTodayRouteImport } from './routes/api/today'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const StylistRoute = StylistRouteImport.update({
@@ -29,6 +30,11 @@ const ApiTryonRoute = ApiTryonRouteImport.update({
   path: '/api/tryon',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTodayRoute = ApiTodayRouteImport.update({
+  id: '/api/today',
+  path: '/api/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/stylist': typeof StylistRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/today': typeof ApiTodayRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/stylist': typeof StylistRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/today': typeof ApiTodayRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/stylist': typeof StylistRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/today': typeof ApiTodayRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/stylist' | '/api/chat' | '/api/tryon'
+  fullPaths: '/' | '/stylist' | '/api/chat' | '/api/today' | '/api/tryon'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/stylist' | '/api/chat' | '/api/tryon'
-  id: '__root__' | '/' | '/stylist' | '/api/chat' | '/api/tryon'
+  to: '/' | '/stylist' | '/api/chat' | '/api/today' | '/api/tryon'
+  id: '__root__' | '/' | '/stylist' | '/api/chat' | '/api/today' | '/api/tryon'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   StylistRoute: typeof StylistRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiTodayRoute: typeof ApiTodayRoute
   ApiTryonRoute: typeof ApiTryonRoute
 }
 
@@ -92,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTryonRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/today': {
+      id: '/api/today'
+      path: '/api/today'
+      fullPath: '/api/today'
+      preLoaderRoute: typeof ApiTodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -106,8 +123,19 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   StylistRoute: StylistRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiTodayRoute: ApiTodayRoute,
   ApiTryonRoute: ApiTryonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
