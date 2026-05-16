@@ -119,17 +119,18 @@ function RootComponent() {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const localAgentBypass = import.meta.env.VITE_LOCAL_AGENT_BYPASS === "true";
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_e, s) => {
-        setSession(s);
-        queryClient.invalidateQueries();
-        router.invalidate();
-      },
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      queryClient.invalidateQueries();
+      router.invalidate();
+    });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setReady(true);
@@ -139,14 +140,15 @@ function RootComponent() {
 
   useEffect(() => {
     if (!ready) return;
+    if (localAgentBypass) return;
     if (!session && pathname !== "/login") {
       navigate({ to: "/login" });
     }
-  }, [ready, session, pathname, navigate]);
+  }, [localAgentBypass, ready, session, pathname, navigate]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {ready && (session || pathname === "/login") ? <Outlet /> : null}
+      {ready && (localAgentBypass || session || pathname === "/login") ? <Outlet /> : null}
       <Toaster />
     </QueryClientProvider>
   );
