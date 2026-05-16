@@ -9,38 +9,75 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StylistRouteImport } from './routes/stylist'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiTryonRouteImport } from './routes/api/tryon'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 
+const StylistRoute = StylistRouteImport.update({
+  id: '/stylist',
+  path: '/stylist',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTryonRoute = ApiTryonRouteImport.update({
+  id: '/api/tryon',
+  path: '/api/tryon',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/stylist': typeof StylistRoute
+  '/api/chat': typeof ApiChatRoute
+  '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/stylist': typeof StylistRoute
+  '/api/chat': typeof ApiChatRoute
+  '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/stylist': typeof StylistRoute
+  '/api/chat': typeof ApiChatRoute
+  '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/stylist' | '/api/chat' | '/api/tryon'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/stylist' | '/api/chat' | '/api/tryon'
+  id: '__root__' | '/' | '/stylist' | '/api/chat' | '/api/tryon'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  StylistRoute: typeof StylistRoute
+  ApiChatRoute: typeof ApiChatRoute
+  ApiTryonRoute: typeof ApiTryonRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/stylist': {
+      id: '/stylist'
+      path: '/stylist'
+      fullPath: '/stylist'
+      preLoaderRoute: typeof StylistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +85,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/tryon': {
+      id: '/api/tryon'
+      path: '/api/tryon'
+      fullPath: '/api/tryon'
+      preLoaderRoute: typeof ApiTryonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  StylistRoute: StylistRoute,
+  ApiChatRoute: ApiChatRoute,
+  ApiTryonRoute: ApiTryonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
