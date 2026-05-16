@@ -145,7 +145,7 @@ function StylistMessage({ message }: { message: UIMessage }) {
 
   return (
     <Message from="assistant">
-      <MessageContent variant="flat">
+      <MessageContent>
         {displayText && <MessageResponse>{displayText}</MessageResponse>}
         {outfitIds && <OutfitCard ids={outfitIds} eventContext={getLastUserText(message)} />}
       </MessageContent>
