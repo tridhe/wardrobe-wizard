@@ -91,8 +91,6 @@ function TodayPage() {
         </header>
 
         <div className="flex-1 px-4 py-6 md:px-10 md:py-8">
-
-        <div className="flex-1 px-10 py-8">
           <div className="max-w-4xl mx-auto">
             {isLoading && (
               <div className="py-16 flex flex-col items-center gap-3 text-muted-foreground">
