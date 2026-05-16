@@ -54,6 +54,7 @@ export function Sidebar() {
               <Link
                 key={item.label}
                 to={item.to}
+                data-agent-id={item.to === "/stylist" ? "nav-stylist" : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
                   active
@@ -104,15 +105,13 @@ export function Sidebar() {
                 <Link
                   to={item.to}
                   aria-label={item.label}
+                  data-agent-id={item.to === "/stylist" ? "nav-stylist" : undefined}
                   className={cn(
                     "w-full flex flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
                     active ? "text-foreground" : "text-muted-foreground",
                   )}
                 >
-                  <Icon
-                    className={cn("size-5", active && "stroke-[2.25]")}
-                    strokeWidth={1.75}
-                  />
+                  <Icon className={cn("size-5", active && "stroke-[2.25]")} strokeWidth={1.75} />
                   {item.label}
                 </Link>
               </li>
