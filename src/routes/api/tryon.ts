@@ -60,13 +60,11 @@ export const Route = createFileRoute("/api/tryon")({
         const base = new URL(request.url);
         const resolve = (u: string) => new URL(u, base).toString();
 
-        // Cap outfit pieces to keep token budget under 32k.
+        // Cap outfit pieces to keep token budget reasonable.
         const items = body.items.slice(0, 4);
 
-        const [avatarDataUrl, ...itemDataUrls] = await Promise.all([
-          urlToResizedDataUrl(resolve(body.avatarUrl), 640),
-          ...items.map((i) => urlToResizedDataUrl(resolve(i.imageUrl), 448)),
-        ]);
+        const avatarUrl = resolve(body.avatarUrl);
+        const itemUrls = items.map((i) => resolve(i.imageUrl));
 
         const itemList = items
           .map((i) => `${i.name}${i.detail ? ` (${i.detail})` : ""}`)
@@ -75,8 +73,8 @@ export const Route = createFileRoute("/api/tryon")({
 
         const content = [
           { type: "text", text: prompt },
-          { type: "image_url", image_url: { url: avatarDataUrl } },
-          ...itemDataUrls.map((url) => ({ type: "image_url", image_url: { url } })),
+          { type: "image_url", image_url: { url: avatarUrl } },
+          ...itemUrls.map((url) => ({ type: "image_url", image_url: { url } })),
         ];
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
