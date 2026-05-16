@@ -19,7 +19,7 @@ import {
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { OutfitCard } from "@/components/outfit-card";
 import { Sidebar } from "@/components/sidebar";
-import { closetItems } from "@/lib/closet";
+
 import { Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/stylist")({
@@ -39,8 +39,8 @@ function extractOutfit(text: string): string[] | null {
   if (!m) return null;
   const ids = m[1]
     .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter((s) => closetItems.some((c) => c.id === s));
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
   return ids.length ? ids : null;
 }
 
