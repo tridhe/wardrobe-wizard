@@ -17,38 +17,6 @@ const BodySchema = z.object({
   eventContext: z.string().max(500).optional(),
 });
 
-async function urlToResizedDataUrl(url: string, maxDim = 512): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  const blob = await res.blob();
-  // Use the Worker's ImageBitmap + OffscreenCanvas if available, else fall back.
-  // Workerd lacks canvas; do a lightweight downsample via createImageBitmap + resize options.
-  try {
-    // @ts-expect-error - createImageBitmap exists in workerd with image support disabled; guard.
-    const bmp = await createImageBitmap(blob, {
-      resizeWidth: maxDim,
-      resizeHeight: maxDim,
-      resizeQuality: "medium",
-    });
-    // @ts-expect-error - OffscreenCanvas may not exist.
-    const canvas = new OffscreenCanvas(bmp.width, bmp.height);
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(bmp, 0, 0);
-    const out: Blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.7 });
-    const buf = new Uint8Array(await out.arrayBuffer());
-    let bin = "";
-    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-    return `data:image/jpeg;base64,${btoa(bin)}`;
-  } catch {
-    // Fallback: send original bytes (may exceed token limits for big images).
-    const buf = new Uint8Array(await blob.arrayBuffer());
-    let bin = "";
-    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-    return `data:${contentType};base64,${btoa(bin)}`;
-  }
-}
-
 export const Route = createFileRoute("/api/tryon")({
   server: {
     handlers: {
@@ -60,9 +28,8 @@ export const Route = createFileRoute("/api/tryon")({
         const base = new URL(request.url);
         const resolve = (u: string) => new URL(u, base).toString();
 
-        // Cap outfit pieces to keep token budget reasonable.
+        // Cap outfit pieces to keep token budget under the model's 32k limit.
         const items = body.items.slice(0, 4);
-
         const avatarUrl = resolve(body.avatarUrl);
         const itemUrls = items.map((i) => resolve(i.imageUrl));
 
@@ -71,6 +38,8 @@ export const Route = createFileRoute("/api/tryon")({
           .join(", ");
         const prompt = `Editorial full-body fashion photograph of the woman in the first reference photo, wearing this complete outfit composed from the following reference garments: ${itemList}. Faithfully preserve her face, hair, and identity from the first image. Studio lighting on a soft neutral gradient backdrop, high fashion magazine style, sharp focus, elegant pose. ${body.eventContext ? `Styled for: ${body.eventContext}.` : ""}`;
 
+        // Pass image URLs directly — the gateway fetches them, avoiding the
+        // huge base64 token cost that triggers INVALID_ARGUMENT (32k limit).
         const content = [
           { type: "text", text: prompt },
           { type: "image_url", image_url: { url: avatarUrl } },
