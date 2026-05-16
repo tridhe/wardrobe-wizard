@@ -1,29 +1,29 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { useClosetCatalog } from "@/lib/use-closet";
 import { imageToDataUrl } from "@/lib/image-to-data-url";
+import { isDemoAuthenticated } from "@/lib/demo-auth";
 
-export function OutfitCard({
-  ids,
-  eventContext,
-}: {
-  ids: string[];
-  eventContext?: string;
-}) {
+export function OutfitCard({ ids, eventContext }: { ids: string[]; eventContext?: string }) {
   const { data, isLoading: catalogLoading } = useClosetCatalog();
-  const items = data
-    ? ids
-        .map((id) => data.items.find((c) => c.id === id))
-        .filter((i): i is NonNullable<typeof i> => Boolean(i))
-    : [];
+  const items = useMemo(
+    () =>
+      data
+        ? ids
+            .map((id) => data.items.find((c) => c.id === id))
+            .filter((i): i is NonNullable<typeof i> => Boolean(i))
+        : [],
+    [data, ids],
+  );
 
   const [tryonUrl, setTryonUrl] = useState<string | null>(null);
   const [tryonLoading, setTryonLoading] = useState(false);
   const [tryonError, setTryonError] = useState<string | null>(null);
   const startedRef = useRef(false);
+  const demoSession = isDemoAuthenticated();
 
   useEffect(() => {
-    if (startedRef.current || !data || items.length === 0) return;
+    if (demoSession || startedRef.current || !data || items.length === 0) return;
     startedRef.current = true;
     setTryonLoading(true);
 
@@ -61,7 +61,7 @@ export function OutfitCard({
         setTryonLoading(false);
       }
     })();
-  }, [data, items, eventContext]);
+  }, [data, items, eventContext, demoSession]);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -83,6 +83,9 @@ export function OutfitCard({
             alt="You styled for the event"
             className="w-full h-full object-cover"
           />
+        )}
+        {demoSession && items[0] && !tryonUrl && (
+          <img src={items[0].image} alt={items[0].name} className="w-full h-full object-cover" />
         )}
       </div>
       <div className="p-4">

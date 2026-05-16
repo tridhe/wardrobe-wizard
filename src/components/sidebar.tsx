@@ -2,6 +2,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { Compass, Sparkles, Check, Shirt, Calendar, Wand2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { signOutDemo } from "@/lib/demo-auth";
 
 type NavItem =
   | { label: string; icon: typeof Compass; to: "/" | "/stylist" | "/today" | "/styler" }
@@ -20,6 +21,7 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const signOut = async () => {
+    signOutDemo();
     await supabase.auth.signOut();
     navigate({ to: "/login" });
   };
@@ -109,10 +111,7 @@ export function Sidebar() {
                     active ? "text-foreground" : "text-muted-foreground",
                   )}
                 >
-                  <Icon
-                    className={cn("size-5", active && "stroke-[2.25]")}
-                    strokeWidth={1.75}
-                  />
+                  <Icon className={cn("size-5", active && "stroke-[2.25]")} strokeWidth={1.75} />
                   {item.label}
                 </Link>
               </li>

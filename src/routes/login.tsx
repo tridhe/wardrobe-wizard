@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { isDemoAuthenticated, signInDemo } from "@/lib/demo-auth";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -18,7 +19,7 @@ function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/today" });
+      if (data.session || isDemoAuthenticated()) navigate({ to: "/today" });
     });
   }, [navigate]);
 
@@ -36,31 +37,41 @@ function LoginPage() {
     navigate({ to: "/today" });
   };
 
+  const startDemo = () => {
+    signInDemo();
+    navigate({ to: "/today" });
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40 px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-background p-10 shadow-sm text-center">
         <div className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto mb-6">
           <Sparkles className="size-5" strokeWidth={1.75} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Atelier AI
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Atelier AI</h1>
         <p className="text-[10px] font-medium tracking-[0.18em] text-muted-foreground mt-1 uppercase">
           Digital Atelier
         </p>
         <p className="mt-6 text-sm text-muted-foreground">
-          Sign in with Google to style your day.
+          Use a local demo session or sign in with Google to style your day.
         </p>
+        <button
+          onClick={startDemo}
+          className="mt-8 w-full inline-flex items-center justify-center gap-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors py-3 text-sm font-medium"
+        >
+          <Sparkles className="size-4" strokeWidth={1.75} />
+          Continue with demo login
+        </button>
         <button
           onClick={signIn}
           disabled={loading}
-          className="mt-8 w-full inline-flex items-center justify-center gap-3 rounded-md border border-border bg-background hover:bg-accent transition-colors py-3 text-sm font-medium text-foreground disabled:opacity-50"
+          className="mt-3 w-full inline-flex items-center justify-center gap-3 rounded-md border border-border bg-background hover:bg-accent transition-colors py-3 text-sm font-medium text-foreground disabled:opacity-50"
         >
           <GoogleIcon />
           {loading ? "Redirecting…" : "Continue with Google"}
         </button>
         <p className="mt-6 text-[11px] text-muted-foreground">
-          One-tap secure sign in via Google.
+          Demo login stays on this device and does not use a real Google account.
         </p>
       </div>
     </div>

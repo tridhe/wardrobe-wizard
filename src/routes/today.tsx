@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/sidebar";
 import { OutfitCard } from "@/components/outfit-card";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
+import { isDemoAuthenticated } from "@/lib/demo-auth";
 
 interface PlannedEvent {
   id: string;
@@ -31,7 +32,46 @@ export const Route = createFileRoute("/today")({
 
 import { supabase } from "@/integrations/supabase/client";
 
+function demoToday(): { events: PlannedEvent[] } {
+  const now = new Date();
+  const coffee = new Date(now);
+  coffee.setHours(10, 30, 0, 0);
+  const coffeeEnd = new Date(coffee);
+  coffeeEnd.setHours(11, 15, 0, 0);
+  const dinner = new Date(now);
+  dinner.setHours(19, 0, 0, 0);
+  const dinnerEnd = new Date(dinner);
+  dinnerEnd.setHours(21, 0, 0, 0);
+
+  return {
+    events: [
+      {
+        id: "demo-coffee",
+        summary: "Coffee with Maya",
+        location: "Canal Saint-Martin",
+        start: coffee.toISOString(),
+        end: coffeeEnd.toISOString(),
+        rationale:
+          "A clean knit and straight denim keep the look relaxed, while white sneakers make it easy for a walk after coffee.",
+        outfitIds: ["knit", "denim", "sneaker"],
+      },
+      {
+        id: "demo-dinner",
+        summary: "Dinner reservation",
+        location: "Le Marais",
+        start: dinner.toISOString(),
+        end: dinnerEnd.toISOString(),
+        rationale:
+          "The slip dress and tailored coat make the outfit evening-ready without feeling overworked.",
+        outfitIds: ["dress", "coat", "boot"],
+      },
+    ],
+  };
+}
+
 async function fetchToday(): Promise<{ events: PlannedEvent[] }> {
+  if (isDemoAuthenticated()) return demoToday();
+
   const { data } = await supabase.auth.getSession();
   const providerToken = data.session?.provider_token;
   if (!providerToken) {
@@ -123,16 +163,12 @@ function TodayPage() {
 
             {data && data.events.length === 0 && (
               <div className="rounded-xl border border-border bg-card p-10 text-center">
-                <Calendar
-                  className="size-8 mx-auto text-muted-foreground mb-3"
-                  strokeWidth={1.5}
-                />
+                <Calendar className="size-8 mx-auto text-muted-foreground mb-3" strokeWidth={1.5} />
                 <h3 className="text-lg font-semibold text-foreground">
                   Nothing on your calendar today
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Enjoy the day off — or head to the Stylist to plan something
-                  ahead.
+                  Enjoy the day off — or head to the Stylist to plan something ahead.
                 </p>
               </div>
             )}
@@ -165,9 +201,7 @@ function EventBlock({ event }: { event: PlannedEvent }) {
       <div>
         <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
           {formatTime(event.start)}
-          {event.end && event.end !== event.start
-            ? ` – ${formatTime(event.end)}`
-            : ""}
+          {event.end && event.end !== event.start ? ` – ${formatTime(event.end)}` : ""}
         </p>
         <h3 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
           {event.summary}
@@ -179,9 +213,7 @@ function EventBlock({ event }: { event: PlannedEvent }) {
           </p>
         )}
         {event.rationale && (
-          <p className="mt-4 text-sm leading-relaxed text-foreground/80">
-            {event.rationale}
-          </p>
+          <p className="mt-4 text-sm leading-relaxed text-foreground/80">{event.rationale}</p>
         )}
         {event.outfitIds.length === 0 && (
           <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">

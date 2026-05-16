@@ -15,6 +15,7 @@ import type { Session } from "@supabase/supabase-js";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { isDemoAuthenticated, onDemoAuthChange } from "@/lib/demo-auth";
 
 function NotFoundComponent() {
   return (
@@ -78,16 +79,33 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Wardrobe Wizard" },
+      { name: "description", content: "A digital wardrobe and AI styling assistant." },
+      { name: "author", content: "Wardrobe Wizard" },
+      { name: "theme-color", content: "#1f2328" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Wardrobe" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { property: "og:title", content: "Wardrobe Wizard" },
+      { property: "og:description", content: "A digital wardrobe and AI styling assistant." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      {
+        rel: "manifest",
+        href: "/manifest.webmanifest",
+      },
+      {
+        rel: "icon",
+        href: "/pwa-icon.svg",
+        type: "image/svg+xml",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/pwa-icon-192.png",
+      },
       {
         rel: "stylesheet",
         href: appCss,
@@ -120,33 +138,50 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
+  const [demoSession, setDemoSession] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_e, s) => {
-        setSession(s);
-        queryClient.invalidateQueries();
-        router.invalidate();
-      },
-    );
+    const refreshDemoSession = () => setDemoSession(isDemoAuthenticated());
+    refreshDemoSession();
+    const unsubscribeDemoAuth = onDemoAuthChange(refreshDemoSession);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      refreshDemoSession();
+      queryClient.invalidateQueries();
+      router.invalidate();
+    });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      refreshDemoSession();
       setReady(true);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      unsubscribeDemoAuth();
+    };
   }, [queryClient, router]);
 
   useEffect(() => {
     if (!ready) return;
-    if (!session && pathname !== "/login") {
+    if (!session && !demoSession && pathname !== "/login") {
       navigate({ to: "/login" });
     }
-  }, [ready, session, pathname, navigate]);
+  }, [ready, session, demoSession, pathname, navigate]);
+
+  useEffect(() => {
+    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker.register("/sw.js").catch((error) => {
+      console.error("Service worker registration failed", error);
+    });
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {ready && (session || pathname === "/login") ? <Outlet /> : null}
+      {ready && (session || demoSession || pathname === "/login") ? <Outlet /> : null}
       <Toaster />
     </QueryClientProvider>
   );
