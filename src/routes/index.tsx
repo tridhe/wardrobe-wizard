@@ -35,16 +35,18 @@ function Closet() {
   return (
     <div className="min-h-screen bg-muted/40 flex">
       <Sidebar />
-      <main className="flex-1 p-10">
-        <header className="flex items-start justify-between mb-8 gap-6">
+      <main className="flex-1 px-4 py-6 pb-24 md:p-10 md:pb-10 min-w-0">
+        <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6 md:mb-8 md:gap-6">
           <div>
-            <h2 className="text-4xl font-bold tracking-tight text-foreground">Your Closet</h2>
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground">
+              Your Closet
+            </h2>
             <p className="text-sm text-muted-foreground mt-1.5">
               A curated digital archive of your personal style.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="relative flex-1 md:flex-none">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
                 strokeWidth={1.75}
@@ -53,13 +55,19 @@ function Closet() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search archive..."
-                className="bg-muted/60 border border-transparent focus:border-border focus:bg-background rounded-full pl-9 pr-4 py-2 text-sm w-64 outline-none transition-colors"
+                className="bg-muted/60 border border-transparent focus:border-border focus:bg-background rounded-full pl-9 pr-4 py-2 text-sm w-full md:w-64 outline-none transition-colors"
               />
             </div>
-            <button className="size-9 rounded-full hover:bg-accent flex items-center justify-center text-muted-foreground transition-colors">
+            <button
+              aria-label="Notifications"
+              className="hidden sm:flex size-9 rounded-full hover:bg-accent items-center justify-center text-muted-foreground transition-colors"
+            >
               <Bell className="size-4" strokeWidth={1.75} />
             </button>
-            <button className="size-9 rounded-full hover:bg-accent flex items-center justify-center text-muted-foreground transition-colors">
+            <button
+              aria-label="Bag"
+              className="hidden sm:flex size-9 rounded-full hover:bg-accent items-center justify-center text-muted-foreground transition-colors"
+            >
               <ShoppingBag className="size-4" strokeWidth={1.75} />
             </button>
             {avatarUrl && <AvatarUploader src={avatarUrl} />}
