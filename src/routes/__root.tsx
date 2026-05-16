@@ -4,12 +4,17 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -111,10 +116,37 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_e, s) => {
+        setSession(s);
+        queryClient.invalidateQueries();
+        router.invalidate();
+      },
+    );
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setReady(true);
+    });
+    return () => subscription.unsubscribe();
+  }, [queryClient, router]);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!session && pathname !== "/login") {
+      navigate({ to: "/login" });
+    }
+  }, [ready, session, pathname, navigate]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      {ready && (session || pathname === "/login") ? <Outlet /> : null}
       <Toaster />
     </QueryClientProvider>
   );

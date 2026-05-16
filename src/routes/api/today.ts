@@ -2,9 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { loadFullCatalog, formatCatalogForPrompt, type CatalogEntry } from "@/lib/closet.server";
 
-const CALENDAR_GATEWAY =
-  "https://connector-gateway.lovable.dev/google_calendar/calendar/v3";
-
 interface GCalEvent {
   id: string;
   summary?: string;
@@ -24,10 +21,7 @@ interface PlannedEvent {
   outfitIds: string[];
 }
 
-function parseOutfit(
-  text: string,
-  validIds: Set<string>,
-): { rationale: string; ids: string[] } {
+function parseOutfit(text: string, validIds: Set<string>) {
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
@@ -38,20 +32,15 @@ function parseOutfit(
       const ids = (parsed.outfit ?? [])
         .map((s) => String(s).trim())
         .filter((s) => validIds.has(s));
-      if (ids.length) {
-        return { rationale: parsed.rationale?.trim() ?? "", ids };
-      }
+      if (ids.length) return { rationale: parsed.rationale?.trim() ?? "", ids };
     } catch {
-      // fall through
+      /* ignore */
     }
   }
   return { rationale: text.trim().slice(0, 280), ids: [] };
 }
 
-async function fetchTodaysEvents(
-  lovableKey: string,
-  connKey: string,
-): Promise<GCalEvent[]> {
+async function fetchTodaysEvents(googleToken: string): Promise<GCalEvent[]> {
   const now = new Date();
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
@@ -67,13 +56,8 @@ async function fetchTodaysEvents(
   });
 
   const res = await fetch(
-    `${CALENDAR_GATEWAY}/calendars/primary/events?${params}`,
-    {
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": connKey,
-      },
-    },
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+    { headers: { Authorization: `Bearer ${googleToken}` } },
   );
   if (!res.ok) {
     const err = await res.text();
@@ -87,7 +71,7 @@ async function planOutfit(
   lovableKey: string,
   event: GCalEvent,
   catalog: CatalogEntry[],
-): Promise<{ rationale: string; ids: string[] }> {
+) {
   const when = event.start?.dateTime ?? event.start?.date ?? "";
   const userPrompt = `Event: ${event.summary ?? "Untitled"}
 When: ${when}
@@ -99,9 +83,8 @@ Pick ONE outfit from the closet for this event.
 Closet:
 ${formatCatalogForPrompt(catalog)}
 
-Respond with ONLY a JSON object, no markdown, in this exact shape:
-{"rationale": "1-2 sentences explaining the look", "outfit": ["id1", "id2", "id3"]}
-Use 2-4 ids. Only use ids that appear in the closet list above.`;
+Respond with ONLY a JSON object: {"rationale": "1-2 sentences", "outfit": ["id1","id2","id3"]}
+Use 2-4 ids. Only ids from the closet list.`;
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -121,34 +104,37 @@ Use 2-4 ids. Only use ids that appear in the closet list above.`;
       ],
     }),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`AI gateway error [${res.status}]: ${err}`);
-  }
+  if (!res.ok) throw new Error(`AI gateway error [${res.status}]: ${await res.text()}`);
   const data = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const text = data.choices?.[0]?.message?.content ?? "";
-  const validIds = new Set(catalog.map((c) => c.id));
-  return parseOutfit(text, validIds);
+  return parseOutfit(text, new Set(catalog.map((c) => c.id)));
 }
 
 export const Route = createFileRoute("/api/today")({
   server: {
     handlers: {
-      GET: async () => {
+      POST: async ({ request }) => {
         const lovableKey = process.env.LOVABLE_API_KEY;
-        const connKey = process.env.GOOGLE_CALENDAR_API_KEY;
-        if (!lovableKey) {
-          return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+        if (!lovableKey) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+
+        let body: { providerToken?: string };
+        try {
+          body = await request.json();
+        } catch {
+          return new Response("Invalid JSON", { status: 400 });
         }
-        if (!connKey) {
-          return new Response("Google Calendar not connected", { status: 500 });
+        const googleToken = body.providerToken;
+        if (!googleToken) {
+          return new Response("Missing Google access token. Please sign in again.", {
+            status: 401,
+          });
         }
 
         try {
           const [events, { catalog }] = await Promise.all([
-            fetchTodaysEvents(lovableKey, connKey),
+            fetchTodaysEvents(googleToken),
             loadFullCatalog(),
           ]);
           const planned: PlannedEvent[] = await Promise.all(
