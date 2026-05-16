@@ -1,13 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Compass, Sparkles, Check, Shirt } from "lucide-react";
+import { Compass, Sparkles, Check, Shirt, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem =
-  | { label: string; icon: typeof Compass; to: "/" | "/stylist" }
+  | { label: string; icon: typeof Compass; to: "/" | "/stylist" | "/today" }
   | { label: string; icon: typeof Compass; disabled: true };
 
 const navItems: NavItem[] = [
   { label: "Discovery", icon: Compass, disabled: true },
+  { label: "Today", icon: Calendar, to: "/today" },
   { label: "Stylist", icon: Sparkles, to: "/stylist" },
   { label: "Closet", icon: Check, to: "/" },
   { label: "Outfits", icon: Shirt, disabled: true },

@@ -9,11 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TodayRouteImport } from './routes/today'
 import { Route as StylistRouteImport } from './routes/stylist'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTryonRouteImport } from './routes/api/tryon'
+import { Route as ApiTodayRouteImport } from './routes/api/today'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
+const TodayRoute = TodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StylistRoute = StylistRouteImport.update({
   id: '/stylist',
   path: '/stylist',
@@ -29,6 +36,11 @@ const ApiTryonRoute = ApiTryonRouteImport.update({
   path: '/api/tryon',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTodayRoute = ApiTodayRouteImport.update({
+  id: '/api/today',
+  path: '/api/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -38,39 +50,67 @@ const ApiChatRoute = ApiChatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/stylist': typeof StylistRoute
+  '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/today': typeof ApiTodayRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/stylist': typeof StylistRoute
+  '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/today': typeof ApiTodayRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/stylist': typeof StylistRoute
+  '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/today': typeof ApiTodayRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/stylist' | '/api/chat' | '/api/tryon'
+  fullPaths:
+    | '/'
+    | '/stylist'
+    | '/today'
+    | '/api/chat'
+    | '/api/today'
+    | '/api/tryon'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/stylist' | '/api/chat' | '/api/tryon'
-  id: '__root__' | '/' | '/stylist' | '/api/chat' | '/api/tryon'
+  to: '/' | '/stylist' | '/today' | '/api/chat' | '/api/today' | '/api/tryon'
+  id:
+    | '__root__'
+    | '/'
+    | '/stylist'
+    | '/today'
+    | '/api/chat'
+    | '/api/today'
+    | '/api/tryon'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   StylistRoute: typeof StylistRoute
+  TodayRoute: typeof TodayRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiTodayRoute: typeof ApiTodayRoute
   ApiTryonRoute: typeof ApiTryonRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/today': {
+      id: '/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof TodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stylist': {
       id: '/stylist'
       path: '/stylist'
@@ -92,6 +132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTryonRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/today': {
+      id: '/api/today'
+      path: '/api/today'
+      fullPath: '/api/today'
+      preLoaderRoute: typeof ApiTodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -105,19 +152,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   StylistRoute: StylistRoute,
+  TodayRoute: TodayRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiTodayRoute: ApiTodayRoute,
   ApiTryonRoute: ApiTryonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
