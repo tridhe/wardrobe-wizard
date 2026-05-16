@@ -17,6 +17,7 @@ import {
   PromptInputSubmit,
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { OutfitCard } from "@/components/outfit-card";
 import { Sidebar } from "@/components/sidebar";
 import { closetItems } from "@/lib/closet";
 import { Sparkles } from "lucide-react";
