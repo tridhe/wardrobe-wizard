@@ -13,6 +13,7 @@ import { Route as TodayRouteImport } from './routes/today'
 import { Route as StylistRouteImport } from './routes/stylist'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTryonRouteImport } from './routes/api/tryon'
+import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiTodayRouteImport } from './routes/api/today'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
@@ -36,6 +37,11 @@ const ApiTryonRoute = ApiTryonRouteImport.update({
   path: '/api/tryon',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
+  id: '/api/transcribe',
+  path: '/api/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTodayRoute = ApiTodayRouteImport.update({
   id: '/api/today',
   path: '/api/today',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
   '/api/today': typeof ApiTodayRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
   '/api/today': typeof ApiTodayRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRoutesById {
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/today': typeof TodayRoute
   '/api/chat': typeof ApiChatRoute
   '/api/today': typeof ApiTodayRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tryon': typeof ApiTryonRoute
 }
 export interface FileRouteTypes {
@@ -80,9 +89,17 @@ export interface FileRouteTypes {
     | '/today'
     | '/api/chat'
     | '/api/today'
+    | '/api/transcribe'
     | '/api/tryon'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/stylist' | '/today' | '/api/chat' | '/api/today' | '/api/tryon'
+  to:
+    | '/'
+    | '/stylist'
+    | '/today'
+    | '/api/chat'
+    | '/api/today'
+    | '/api/transcribe'
+    | '/api/tryon'
   id:
     | '__root__'
     | '/'
@@ -90,6 +107,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/api/chat'
     | '/api/today'
+    | '/api/transcribe'
     | '/api/tryon'
   fileRoutesById: FileRoutesById
 }
@@ -99,6 +117,7 @@ export interface RootRouteChildren {
   TodayRoute: typeof TodayRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiTodayRoute: typeof ApiTodayRoute
+  ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTryonRoute: typeof ApiTryonRoute
 }
 
@@ -132,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTryonRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/transcribe': {
+      id: '/api/transcribe'
+      path: '/api/transcribe'
+      fullPath: '/api/transcribe'
+      preLoaderRoute: typeof ApiTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/today': {
       id: '/api/today'
       path: '/api/today'
@@ -155,8 +181,19 @@ const rootRouteChildren: RootRouteChildren = {
   TodayRoute: TodayRoute,
   ApiChatRoute: ApiChatRoute,
   ApiTodayRoute: ApiTodayRoute,
+  ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTryonRoute: ApiTryonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
