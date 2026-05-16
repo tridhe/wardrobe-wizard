@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import { closetItems } from "@/lib/closet";
+import { useClosetCatalog } from "@/lib/use-closet";
 
 export function OutfitCard({
   ids,
@@ -9,9 +9,12 @@ export function OutfitCard({
   ids: string[];
   eventContext?: string;
 }) {
-  const items = ids
-    .map((id) => closetItems.find((c) => c.id === id))
-    .filter((i): i is NonNullable<typeof i> => Boolean(i));
+  const { data, isLoading: catalogLoading } = useClosetCatalog();
+  const items = data
+    ? ids
+        .map((id) => data.items.find((c) => c.id === id))
+        .filter((i): i is NonNullable<typeof i> => Boolean(i))
+    : [];
 
   const [tryonUrl, setTryonUrl] = useState<string | null>(null);
   const [tryonLoading, setTryonLoading] = useState(false);
@@ -19,27 +22,38 @@ export function OutfitCard({
   const startedRef = useRef(false);
 
   useEffect(() => {
-    if (startedRef.current) return;
+    if (startedRef.current || !data || items.length === 0) return;
     startedRef.current = true;
     setTryonLoading(true);
+
+    const payload = {
+      items: items.map((i) => ({
+        name: i.name,
+        detail: i.detail,
+        imageUrl: new URL(i.image, window.location.origin).toString(),
+      })),
+      avatarUrl: new URL(data.avatarUrl, window.location.origin).toString(),
+      eventContext,
+    };
+
     fetch("/api/tryon", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemIds: ids, eventContext }),
+      body: JSON.stringify(payload),
     })
       .then(async (res) => {
         if (!res.ok) throw new Error(await res.text());
         return res.json() as Promise<{ imageUrl: string }>;
       })
-      .then((data) => setTryonUrl(data.imageUrl))
+      .then((d) => setTryonUrl(d.imageUrl))
       .catch((err) => setTryonError(err.message || "Couldn't generate try-on"))
       .finally(() => setTryonLoading(false));
-  }, [ids, eventContext]);
+  }, [data, items, eventContext]);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="aspect-[3/4] bg-muted relative">
-        {tryonLoading && (
+        {(tryonLoading || catalogLoading) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <div className="size-10 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
             <Shimmer>Dressing you for the occasion...</Shimmer>

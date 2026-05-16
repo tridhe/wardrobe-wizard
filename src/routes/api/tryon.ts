@@ -1,32 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { z } from "zod";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { closetItems } from "@/lib/closet";
 
 const BodySchema = z.object({
-  itemIds: z.array(z.string()).min(1).max(6),
+  items: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(200),
+        detail: z.string().max(200).default(""),
+        imageUrl: z.string().url(),
+      }),
+    )
+    .min(1)
+    .max(6),
+  avatarUrl: z.string().url(),
   eventContext: z.string().max(500).optional(),
 });
 
-// Map item id -> filename in src/assets
-const idToAsset: Record<string, string> = {
-  coat: "item-coat.jpg",
-  dress: "item-dress.jpg",
-  sneaker: "item-sneaker.jpg",
-  knit: "item-knit.jpg",
-  denim: "item-denim.jpg",
-  shirt: "item-shirt.jpg",
-  blazer: "item-blazer.jpg",
-  trousers: "item-trousers.jpg",
-  boot: "item-boot.jpg",
-};
-
-async function fileToDataUrl(filename: string): Promise<string> {
-  const full = path.join(process.cwd(), "src", "assets", filename);
-  const buf = await readFile(full);
-  return `data:image/jpeg;base64,${buf.toString("base64")}`;
+async function urlToDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+  const contentType = res.headers.get("content-type") || "image/jpeg";
+  const buf = new Uint8Array(await res.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+  const b64 = btoa(bin);
+  return `data:${contentType};base64,${b64}`;
 }
 
 export const Route = createFileRoute("/api/tryon")({
@@ -37,19 +36,19 @@ export const Route = createFileRoute("/api/tryon")({
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
-        const validItems = body.itemIds
-          .map((id) => closetItems.find((c) => c.id === id))
-          .filter((i): i is NonNullable<typeof i> => Boolean(i));
-        if (validItems.length === 0) {
-          return new Response("No valid items", { status: 400 });
-        }
+        // Resolve all URLs against the incoming request so relative asset
+        // URLs (e.g. /_build/assets/avatar.xxx.jpg) work in dev and prod.
+        const base = new URL(request.url);
+        const resolve = (u: string) => new URL(u, base).toString();
 
-        const avatarDataUrl = await fileToDataUrl("avatar.jpg");
-        const itemDataUrls = await Promise.all(
-          validItems.map((i) => fileToDataUrl(idToAsset[i.id])),
-        );
+        const [avatarDataUrl, ...itemDataUrls] = await Promise.all([
+          urlToDataUrl(resolve(body.avatarUrl)),
+          ...body.items.map((i) => urlToDataUrl(resolve(i.imageUrl))),
+        ]);
 
-        const itemList = validItems.map((i) => `${i.name} (${i.detail})`).join(", ");
+        const itemList = body.items
+          .map((i) => `${i.name}${i.detail ? ` (${i.detail})` : ""}`)
+          .join(", ");
         const prompt = `Editorial full-body fashion photograph of the woman in the first reference photo, wearing this complete outfit composed from the following reference garments: ${itemList}. Faithfully preserve her face, hair, and identity from the first image. Studio lighting on a soft neutral gradient backdrop, high fashion magazine style, sharp focus, elegant pose. ${body.eventContext ? `Styled for: ${body.eventContext}.` : ""}`;
 
         const content = [
