@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,21 +24,16 @@ function LoginPage() {
 
   const signIn = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/today`,
-        scopes: "openid email profile https://www.googleapis.com/auth/calendar.readonly",
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
-      },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}/today`,
     });
-    if (error) {
-      toast.error(error.message ?? "Sign in failed");
+    if (result.error) {
+      toast.error(result.error.message ?? "Sign in failed");
       setLoading(false);
+      return;
     }
+    if (result.redirected) return;
+    navigate({ to: "/today" });
   };
 
   return (
@@ -46,11 +42,15 @@ function LoginPage() {
         <div className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto mb-6">
           <Sparkles className="size-5" strokeWidth={1.75} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Atelier AI</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Atelier AI
+        </h1>
         <p className="text-[10px] font-medium tracking-[0.18em] text-muted-foreground mt-1 uppercase">
           Digital Atelier
         </p>
-        <p className="mt-6 text-sm text-muted-foreground">Sign in with Google to style your day.</p>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Sign in with Google to style your day.
+        </p>
         <button
           onClick={signIn}
           disabled={loading}
@@ -59,7 +59,9 @@ function LoginPage() {
           <GoogleIcon />
           {loading ? "Redirecting…" : "Continue with Google"}
         </button>
-        <p className="mt-6 text-[11px] text-muted-foreground">One-tap secure sign in via Google.</p>
+        <p className="mt-6 text-[11px] text-muted-foreground">
+          One-tap secure sign in via Google.
+        </p>
       </div>
     </div>
   );

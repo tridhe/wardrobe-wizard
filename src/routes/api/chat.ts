@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { createOpenAiProvider } from "@/lib/ai-gateway";
+import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
 import { loadFullCatalog, formatCatalogForPrompt } from "@/lib/closet.server";
 
 type ChatRequestBody = { messages?: unknown };
@@ -29,12 +29,12 @@ export const Route = createFileRoute("/api/chat")({
         if (!Array.isArray(messages)) {
           return new Response("Messages are required", { status: 400 });
         }
-        const key = process.env.OPENAI_API_KEY;
-        if (!key) return new Response("Missing OPENAI_API_KEY", { status: 500 });
+        const key = process.env.LOVABLE_API_KEY;
+        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
         const { catalog } = await loadFullCatalog();
-        const gateway = createOpenAiProvider(key);
-        const model = gateway(process.env.OPENAI_CHAT_MODEL ?? "gpt-4.1-mini");
+        const gateway = createLovableAiGatewayProvider(key);
+        const model = gateway("google/gemini-3-flash-preview");
         const result = streamText({
           model,
           system: buildSystem(formatCatalogForPrompt(catalog)),
