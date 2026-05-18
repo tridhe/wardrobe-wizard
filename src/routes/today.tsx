@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, MapPin, Clock, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { OutfitCard } from "@/components/outfit-card";
@@ -8,6 +8,9 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useClosetCatalog } from "@/lib/use-closet";
+import { useMockUser } from "@/lib/mock-user";
+import type { ClosetItem } from "@/lib/closet";
 
 interface PlannedEvent {
   id: string;
@@ -61,6 +64,88 @@ function todayDateKey() {
 
 function todayPlanKey(userId?: string) {
   return `today_plan:${userId ?? "anonymous"}:${todayDateKey()}`;
+}
+
+function dateAt(hour: number, minute = 0) {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return d.toISOString();
+}
+
+function pickItems(items: ClosetItem[], run: number, categories: string[], fallbackCount = 3) {
+  const selected: ClosetItem[] = [];
+  for (const category of categories) {
+    const matches = items.filter((item) => item.category === category);
+    if (matches.length > 0) selected.push(matches[run % matches.length]);
+  }
+  const remaining = items.filter((item) => !selected.some((picked) => picked.id === item.id));
+  return [...selected, ...remaining.slice(run % Math.max(remaining.length, 1), run + fallbackCount)]
+    .filter(Boolean)
+    .slice(0, 6)
+    .map((item) => item.id);
+}
+
+function buildMockTodayPlan(items: ClosetItem[], run = 0): TodayPlan {
+  const templates = [
+    {
+      id: "mock-brunch",
+      summary: "Coffee catch-up",
+      location: "Neighborhood cafe",
+      start: dateAt(10, 30),
+      end: dateAt(11, 30),
+      tone: "easy, polished, and daytime-friendly",
+    },
+    {
+      id: "mock-workshop",
+      summary: "Design workshop",
+      location: "Studio space",
+      start: dateAt(14),
+      end: dateAt(16),
+      tone: "comfortable, creative, and put together",
+    },
+    {
+      id: "mock-dinner",
+      summary: "Dinner plans",
+      location: "Downtown",
+      start: dateAt(19, 30),
+      end: dateAt(21),
+      tone: "date-night sharp without feeling too formal",
+    },
+  ];
+
+  return {
+    date: todayDateKey(),
+    events: templates.map((event, eventIndex) => {
+      const offset = run + eventIndex;
+      return {
+        id: event.id,
+        summary: event.summary,
+        location: event.location,
+        start: event.start,
+        end: event.end,
+        variants: [
+          {
+            id: `variant-${offset}-1`,
+            label: "Balanced",
+            rationale: `A ${event.tone} outfit from the current demo closet.`,
+            outfitIds: pickItems(items, offset, ["Tops", "Bottoms", "Shoes", "Outerwear"]),
+          },
+          {
+            id: `variant-${offset}-2`,
+            label: "Relaxed",
+            rationale: "A softer variation using the next closest closet pieces.",
+            outfitIds: pickItems(items, offset + 1, ["Dresses", "Shoes", "Outerwear", "Tops"]),
+          },
+          {
+            id: `variant-${offset}-3`,
+            label: "Sharp",
+            rationale: "A more styled option with the strongest available pieces.",
+            outfitIds: pickItems(items, offset + 2, ["Outerwear", "Tops", "Bottoms", "Shoes"]),
+          },
+        ].filter((variant) => variant.outfitIds.length > 0),
+      };
+    }),
+  };
 }
 
 function parseTodayPlan(value?: string | null): TodayPlan | null {
@@ -152,18 +237,31 @@ function formatTime(iso: string | null): string {
 
 function TodayPage() {
   const queryClient = useQueryClient();
+  const mockUser = useMockUser();
+  const { data: closetData, isLoading: closetLoading } = useClosetCatalog();
   const [isSwitching, setIsSwitching] = useState(false);
+  const [generationRun, setGenerationRun] = useState(0);
+  const generationRunRef = useRef(generationRun);
+  const todayQueryKey = useMemo(() => ["today", mockUser?.id ?? "real"], [mockUser?.id]);
   const calendarStatus = useQuery({
-    queryKey: ["calendar-status"],
-    queryFn: checkCalendarStatus,
+    queryKey: ["calendar-status", mockUser?.id ?? "real"],
+    queryFn: () =>
+      mockUser
+        ? ({
+            state: "connected",
+            message: `${mockUser.name}'s demo calendar is ready.`,
+          } satisfies CalendarStatus)
+        : checkCalendarStatus(),
     refetchOnWindowFocus: false,
   });
 
   const { data, isLoading, isError, error, isFetching } = useQuery({
-    queryKey: ["today"],
-    queryFn: () => fetchToday(false),
+    queryKey: todayQueryKey,
+    queryFn: () => (mockUser ? buildMockTodayPlan(closetData?.items ?? [], 0) : fetchToday(false)),
     refetchOnWindowFocus: false,
-    enabled: calendarStatus.data?.state === "connected",
+    enabled:
+      calendarStatus.data?.state === "connected" &&
+      (!mockUser || (!closetLoading && Boolean(closetData))),
   });
 
   const today = new Date().toLocaleDateString("en-US", {
@@ -171,6 +269,10 @@ function TodayPage() {
     month: "long",
     day: "numeric",
   });
+
+  useEffect(() => {
+    generationRunRef.current = generationRun;
+  }, [generationRun]);
 
   const reconnectCalendar = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -190,8 +292,24 @@ function TodayPage() {
   const handleSwitchItUp = async () => {
     setIsSwitching(true);
     try {
-      const fresh = await fetchToday(true);
-      queryClient.setQueryData(["today"], fresh);
+      if (mockUser) {
+        if ((closetData?.items.length ?? 0) === 0) {
+          toast.error(`${mockUser.name} needs closet pieces before Aura can generate looks`);
+          return;
+        }
+        setGenerationRun((run) => {
+          const nextRun = run + 1;
+          queryClient.setQueryData(
+            todayQueryKey,
+            buildMockTodayPlan(closetData?.items ?? [], nextRun),
+          );
+          return nextRun;
+        });
+      } else {
+        const fresh = await fetchToday(true);
+        queryClient.setQueryData(todayQueryKey, fresh);
+        setGenerationRun((run) => run + 1);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't switch up today's outfits");
     } finally {
@@ -200,8 +318,9 @@ function TodayPage() {
   };
 
   const handleVariantImage = useCallback(
-    async (eventId: string, variantId: string, imageUrl: string) => {
-      const current = queryClient.getQueryData<TodayPlan>(["today"]);
+    async (eventId: string, variantId: string, imageUrl: string, run: number) => {
+      if (run !== generationRunRef.current) return;
+      const current = queryClient.getQueryData<TodayPlan>(todayQueryKey);
       if (!current) return;
       const next: TodayPlan = {
         ...current,
@@ -216,14 +335,15 @@ function TodayPage() {
             : event,
         ),
       };
-      queryClient.setQueryData(["today"], next);
+      queryClient.setQueryData(todayQueryKey, next);
+      if (mockUser) return;
       try {
         await saveTodayPlan(next);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Couldn't save generated look");
       }
     },
-    [queryClient],
+    [mockUser, queryClient, todayQueryKey],
   );
 
   return (
@@ -299,7 +419,12 @@ function TodayPage() {
             {data && data.events.length > 0 && (
               <div className="space-y-10">
                 {data.events.map((ev) => (
-                  <EventBlock key={ev.id} event={ev} onVariantImage={handleVariantImage} />
+                  <EventBlock
+                    key={ev.id}
+                    event={ev}
+                    generationRun={generationRun}
+                    onVariantImage={handleVariantImage}
+                  />
                 ))}
               </div>
             )}
@@ -379,10 +504,17 @@ function CalendarStatusCard({
 
 function EventBlock({
   event,
+  generationRun,
   onVariantImage,
 }: {
   event: PlannedEvent;
-  onVariantImage: (eventId: string, variantId: string, imageUrl: string) => void | Promise<void>;
+  generationRun: number;
+  onVariantImage: (
+    eventId: string,
+    variantId: string,
+    imageUrl: string,
+    run: number,
+  ) => void | Promise<void>;
 }) {
   const [selectedVariantId, setSelectedVariantId] = useState(event.variants[0]?.id ?? "");
   const selectedVariant =
@@ -440,11 +572,14 @@ function EventBlock({
       </div>
       {selectedVariant && selectedVariant.outfitIds.length > 0 && (
         <OutfitCard
-          key={selectedVariant.id}
+          key={`${event.id}:${selectedVariant.id}:${generationRun}`}
           ids={selectedVariant.outfitIds}
           eventContext={eventContext}
+          generationKey={generationRun}
           initialImageUrl={selectedVariant.imageUrl}
-          onGenerated={(imageUrl) => onVariantImage(event.id, selectedVariant.id, imageUrl)}
+          onGenerated={(imageUrl) =>
+            onVariantImage(event.id, selectedVariant.id, imageUrl, generationRun)
+          }
         />
       )}
     </section>

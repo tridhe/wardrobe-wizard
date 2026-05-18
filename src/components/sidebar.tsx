@@ -1,7 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   Compass,
-  Sparkles,
   Check,
   Shirt,
   Calendar,
@@ -19,7 +18,7 @@ type NavItem =
   | {
       label: string;
       icon: typeof Compass;
-      to: "/" | "/stylist" | "/today" | "/styler" | "/outfits" | "/inspiration" | "/couples";
+      to: "/" | "/today" | "/styler" | "/outfits" | "/inspiration" | "/couples";
     }
   | { label: string; icon: typeof Compass; disabled: true };
 
@@ -27,7 +26,6 @@ const navItems: NavItem[] = [
   { label: "Today", icon: Calendar, to: "/today" },
   { label: "Inspiration", icon: Camera, to: "/inspiration" },
   { label: "Collaborate", icon: Users, to: "/couples" },
-  { label: "Stylist", icon: Sparkles, to: "/stylist" },
   { label: "Styler", icon: Wand2, to: "/styler" },
   { label: "Closet", icon: Check, to: "/" },
   { label: "Outfits", icon: Shirt, to: "/outfits" },
@@ -73,7 +71,6 @@ export function Sidebar() {
               <Link
                 key={item.label}
                 to={item.to}
-                data-agent-id={item.to === "/stylist" ? "nav-stylist" : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
                   active
@@ -148,7 +145,6 @@ export function Sidebar() {
                 <Link
                   to={item.to}
                   aria-label={item.label}
-                  data-agent-id={item.to === "/stylist" ? "nav-stylist" : undefined}
                   className={cn(
                     "w-full flex flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
                     active ? "text-foreground" : "text-muted-foreground",

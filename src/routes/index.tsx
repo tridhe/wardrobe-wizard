@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Search, Bell, ShoppingBag, Plus, Upload, Trash2 } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
+import { Search, Bell, ShoppingBag, Plus, Upload, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/sidebar";
@@ -9,12 +9,28 @@ import { AddItemDialog } from "@/components/add-item-dialog";
 import { AvatarUploader } from "@/components/avatar-uploader";
 import { useClosetCatalog } from "@/lib/use-closet";
 import { supabase } from "@/integrations/supabase/client";
-import { deleteMockClosetItem, mockOwnerKey, useMockUser } from "@/lib/mock-user";
+import {
+  deleteMockClosetItem,
+  mockOwnerKey,
+  updateMockClosetItem,
+  useMockUser,
+} from "@/lib/mock-user";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   closetSearchText,
   closetTagValues,
   type ClosetCategory,
   type ClosetItem,
+  type ClosetTags,
 } from "@/lib/closet";
 
 export const Route = createFileRoute("/")({
@@ -23,6 +39,74 @@ export const Route = createFileRoute("/")({
 
 type Filter = "All Items" | ClosetCategory;
 const categories: Filter[] = ["All Items", "Tops", "Bottoms", "Dresses", "Shoes", "Outerwear"];
+const editableCategories = categories.filter((cat): cat is ClosetCategory => cat !== "All Items");
+
+type EditItemValues = {
+  name: string;
+  category: ClosetCategory;
+  color: string;
+  garmentType: string;
+  fit: string;
+  material: string;
+  pattern: string;
+  silhouette: string;
+  formality: string;
+  season: string;
+  occasions: string;
+  styleTags: string;
+};
+
+function joinList(values?: string[]) {
+  return values?.join(", ") ?? "";
+}
+
+function splitList(value: string) {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function clean(value: string) {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function formFromItem(item: ClosetItem): EditItemValues {
+  return {
+    name: item.name,
+    category: item.category,
+    color: item.tags?.color ?? "",
+    garmentType: item.tags?.garmentType ?? "",
+    fit: item.tags?.fit ?? "",
+    material: item.tags?.material ?? "",
+    pattern: item.tags?.pattern ?? "",
+    silhouette: item.tags?.silhouette ?? "",
+    formality: item.tags?.formality ?? "",
+    season: joinList(item.tags?.season),
+    occasions: joinList(item.tags?.occasions),
+    styleTags: joinList(item.tags?.styleTags),
+  };
+}
+
+function tagsFromForm(values: EditItemValues): ClosetTags {
+  return {
+    color: clean(values.color),
+    garmentType: clean(values.garmentType),
+    fit: clean(values.fit),
+    material: clean(values.material),
+    pattern: clean(values.pattern),
+    silhouette: clean(values.silhouette),
+    formality: clean(values.formality),
+    season: splitList(values.season),
+    occasions: splitList(values.occasions),
+    styleTags: splitList(values.styleTags),
+  };
+}
+
+function detailFromTags(tags: ClosetTags) {
+  return [tags.color, tags.garmentType, tags.fit].filter(Boolean).join(" • ");
+}
 
 function Closet() {
   const queryClient = useQueryClient();
@@ -30,6 +114,7 @@ function Closet() {
   const [active, setActive] = useState<Filter>("All Items");
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<ClosetItem | null>(null);
   const { data } = useClosetCatalog();
   const items = data?.items ?? [];
   const avatarUrl = data?.avatarUrl ?? "";
@@ -52,6 +137,30 @@ function Closet() {
       toast.success("Removed from closet");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not delete item");
+    }
+  }
+
+  async function updateItem(item: ClosetItem, values: EditItemValues) {
+    const tags = tagsFromForm(values);
+    const patch = {
+      name: values.name.trim() || item.name,
+      category: values.category,
+      detail: detailFromTags(tags),
+      tags,
+    };
+
+    try {
+      if (mockUser) {
+        updateMockClosetItem(mockOwnerKey(mockUser), item.id, patch);
+      } else {
+        const { error } = await supabase.from("user_items").update(patch).eq("id", item.id);
+        if (error) throw error;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["closet-catalog"] });
+      setEditingItem(null);
+      toast.success("Updated closet tags");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update item");
     }
   }
 
@@ -144,16 +253,37 @@ function Closet() {
           </button>
 
           {filtered.map((item) => (
-            <ClosetItemCard key={item.id} item={item} onDelete={() => deleteItem(item)} />
+            <ClosetItemCard
+              key={item.id}
+              item={item}
+              onDelete={() => deleteItem(item)}
+              onEdit={() => setEditingItem(item)}
+            />
           ))}
         </div>
       </main>
       <AddItemDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      <EditItemDialog
+        item={editingItem}
+        open={Boolean(editingItem)}
+        onOpenChange={(open) => {
+          if (!open) setEditingItem(null);
+        }}
+        onSave={updateItem}
+      />
     </div>
   );
 }
 
-function ClosetItemCard({ item, onDelete }: { item: ClosetItem; onDelete: () => void }) {
+function ClosetItemCard({
+  item,
+  onDelete,
+  onEdit,
+}: {
+  item: ClosetItem;
+  onDelete: () => void;
+  onEdit: () => void;
+}) {
   const tagChips = closetTagValues(item.tags)
     .filter((tag) => !item.detail.toLowerCase().includes(tag.toLowerCase()))
     .slice(0, 3);
@@ -174,6 +304,18 @@ function ClosetItemCard({ item, onDelete }: { item: ClosetItem; onDelete: () => 
             {item.badge}
           </span>
         )}
+        <button
+          type="button"
+          aria-label={`Edit ${item.name}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onEdit();
+          }}
+          className="absolute left-2 top-2 flex size-8 items-center justify-center rounded-full bg-background/90 text-foreground opacity-100 shadow-sm transition-colors hover:bg-background md:opacity-0 md:group-hover:opacity-100"
+        >
+          <Pencil className="size-4" strokeWidth={1.75} />
+        </button>
         <button
           type="button"
           aria-label={`Delete ${item.name}`}
@@ -207,5 +349,216 @@ function ClosetItemCard({ item, onDelete }: { item: ClosetItem; onDelete: () => 
         )}
       </div>
     </article>
+  );
+}
+
+function EditItemDialog({
+  item,
+  open,
+  onOpenChange,
+  onSave,
+}: {
+  item: ClosetItem | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (item: ClosetItem, values: EditItemValues) => Promise<void>;
+}) {
+  const [values, setValues] = useState<EditItemValues | null>(item ? formFromItem(item) : null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setValues(item ? formFromItem(item) : null);
+  }, [item]);
+
+  if (!item || !values) return null;
+
+  const update = <K extends keyof EditItemValues>(key: K, value: EditItemValues[K]) => {
+    setValues((current) => (current ? { ...current, [key]: value } : current));
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await onSave(item, values);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit closet item</DialogTitle>
+          <DialogDescription>Keep this piece easy to find and style.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-[160px_1fr]">
+            <img
+              src={item.image}
+              alt={item.name}
+              className="aspect-square w-full rounded-lg bg-muted object-cover"
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1.5 sm:col-span-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Name
+                </span>
+                <Input
+                  value={values.name}
+                  onChange={(event) => update("name", event.target.value)}
+                />
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Category
+                </span>
+                <select
+                  value={values.category}
+                  onChange={(event) => update("category", event.target.value as ClosetCategory)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  {editableCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <TextField
+                label="Color"
+                value={values.color}
+                onChange={(value) => update("color", value)}
+              />
+              <TextField
+                label="Garment"
+                value={values.garmentType}
+                onChange={(value) => update("garmentType", value)}
+                placeholder="t-shirt, jeans, blazer"
+              />
+              <TextField
+                label="Fit"
+                value={values.fit}
+                onChange={(value) => update("fit", value)}
+              />
+              <TextField
+                label="Material"
+                value={values.material}
+                onChange={(value) => update("material", value)}
+              />
+              <TextField
+                label="Pattern"
+                value={values.pattern}
+                onChange={(value) => update("pattern", value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <TextField
+              label="Silhouette"
+              value={values.silhouette}
+              onChange={(value) => update("silhouette", value)}
+            />
+            <TextField
+              label="Formality"
+              value={values.formality}
+              onChange={(value) => update("formality", value)}
+              placeholder="casual, smart casual, formal"
+            />
+            <TextAreaField
+              label="Season"
+              value={values.season}
+              onChange={(value) => update("season", value)}
+              placeholder="spring, summer"
+            />
+            <TextAreaField
+              label="Occasions"
+              value={values.occasions}
+              onChange={(value) => update("occasions", value)}
+              placeholder="date night, office, travel"
+            />
+            <TextAreaField
+              label="Style Tags"
+              value={values.styleTags}
+              onChange={(value) => update("styleTags", value)}
+              placeholder="minimal, streetwear, classic"
+              className="sm:col-span-2"
+            />
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              {saving ? "Saving..." : "Save tags"}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="space-y-1.5">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <Input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <label className={cn("space-y-1.5", className)}>
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <Textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="min-h-20"
+      />
+    </label>
   );
 }

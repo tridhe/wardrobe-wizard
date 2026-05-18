@@ -116,6 +116,18 @@ export function deleteMockClosetItem(ownerKey: string, itemId: string) {
   );
 }
 
+export function updateMockClosetItem(
+  ownerKey: string,
+  itemId: string,
+  patch: Partial<Pick<MockClosetItem, "name" | "category" | "detail" | "tags">>,
+) {
+  const existing = getMockClosetItems(ownerKey);
+  writeJson(
+    `${CLOSET_PREFIX}${ownerKey}`,
+    existing.map((item) => (item.id === itemId ? { ...item, ...patch } : item)),
+  );
+}
+
 export function getMockAvatarUrl(ownerKey: string) {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(`${AVATAR_PREFIX}${ownerKey}`);

@@ -79,7 +79,17 @@ function InspirationPage() {
       const res = await fetch("/api/inspiration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images }),
+        body: JSON.stringify({
+          images,
+          closet: (data?.items ?? []).map((item) => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            detail: item.detail,
+            imageUrl: item.image,
+            tags: item.tags ?? {},
+          })),
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       setResult((await res.json()) as InspirationResult);

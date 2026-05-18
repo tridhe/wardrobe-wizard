@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { Button } from "@/components/ui/button";
 import { useClosetCatalog } from "@/lib/use-closet";
 import { imageToDataUrl } from "@/lib/image-to-data-url";
 import { saveGeneratedOutfit } from "@/lib/saved-outfits";
@@ -8,14 +9,18 @@ import { saveGeneratedOutfit } from "@/lib/saved-outfits";
 type OutfitCardProps = {
   ids: string[];
   eventContext?: string;
+  generationKey?: string | number;
   initialImageUrl?: string | null;
   saveToOutfits?: boolean;
   onGenerated?: (imageUrl: string) => void | Promise<void>;
 };
 
+const TRYON_TIMEOUT_MS = 90000;
+
 export function OutfitCard({
   ids,
   eventContext,
+  generationKey,
   initialImageUrl,
   saveToOutfits = false,
   onGenerated,
@@ -38,7 +43,13 @@ export function OutfitCard({
   const [tryonLoading, setTryonLoading] = useState(false);
   const [tryonError, setTryonError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [retryRun, setRetryRun] = useState(0);
   const startedRef = useRef(false);
+  const onGeneratedRef = useRef(onGenerated);
+
+  useEffect(() => {
+    onGeneratedRef.current = onGenerated;
+  }, [onGenerated]);
 
   useEffect(() => {
     startedRef.current = Boolean(initialImageUrl);
@@ -46,12 +57,16 @@ export function OutfitCard({
     setTryonError(null);
     setTryonLoading(false);
     setSaved(false);
-  }, [idsKey, initialImageUrl]);
+    setRetryRun(0);
+  }, [eventContext, generationKey, idsKey, initialImageUrl]);
 
   useEffect(() => {
     if (startedRef.current || !data || items.length === 0) return;
     startedRef.current = true;
     setTryonLoading(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), TRYON_TIMEOUT_MS);
+    let active = true;
 
     (async () => {
       try {
@@ -77,11 +92,13 @@ export function OutfitCard({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
+          signal: controller.signal,
         });
         if (!res.ok) throw new Error(await res.text());
         const d = (await res.json()) as { imageUrl: string };
+        if (!active) return;
         setTryonUrl(d.imageUrl);
-        await onGenerated?.(d.imageUrl);
+        await onGeneratedRef.current?.(d.imageUrl);
         if (saveToOutfits) {
           await saveGeneratedOutfit({
             imageUrl: d.imageUrl,
@@ -96,13 +113,27 @@ export function OutfitCard({
           setSaved(true);
         }
       } catch (err) {
-        setTryonError(err instanceof Error ? err.message : "Couldn't generate try-on");
-        toast.error(err instanceof Error ? err.message : "Couldn't generate try-on");
+        if (!active) return;
+        const message =
+          err instanceof DOMException && err.name === "AbortError"
+            ? "Try-on generation timed out. You can retry this look."
+            : err instanceof Error
+              ? err.message
+              : "Couldn't generate try-on";
+        setTryonError(message);
+        toast.error(message);
       } finally {
-        setTryonLoading(false);
+        window.clearTimeout(timeout);
+        if (active) setTryonLoading(false);
       }
     })();
-  }, [data, items, eventContext, idsKey, onGenerated, saveToOutfits]);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [data, items, eventContext, generationKey, idsKey, retryRun, saveToOutfits]);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -114,8 +145,20 @@ export function OutfitCard({
           </div>
         )}
         {tryonError && !tryonLoading && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-destructive p-4 text-center">
-            {tryonError}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center">
+            <p className="text-sm text-destructive">{tryonError}</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setTryonError(null);
+                startedRef.current = false;
+                setRetryRun((run) => run + 1);
+              }}
+            >
+              Try again
+            </Button>
           </div>
         )}
         {tryonUrl && (
