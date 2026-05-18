@@ -26,7 +26,7 @@ const BodySchema = z.object({
   eventContext: z.string().max(500).optional(),
 });
 
-function dataUrlToBlob(dataUrl: string): { blob: Blob; extension: string } {
+function dataUrlToBlob(dataUrl: string): Blob {
   const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
   if (!match) {
     throw new Error("Image edits require data URL image inputs");
@@ -34,14 +34,12 @@ function dataUrlToBlob(dataUrl: string): { blob: Blob; extension: string } {
   const mimeType = match[1];
   const base64 = match[2];
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  const extension = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "png";
-  return { blob: new Blob([bytes], { type: mimeType }), extension };
+  return new Blob([bytes], { type: mimeType });
 }
 
 async function imageRefToFalUrl(imageRef: string, requestUrl: string) {
   if (imageRef.startsWith("data:image/")) {
-    const { blob } = dataUrlToBlob(imageRef);
-    return fal.storage.upload(blob);
+    return fal.storage.upload(dataUrlToBlob(imageRef));
   }
 
   const url = imageRef.startsWith("/") ? new URL(imageRef, requestUrl).toString() : imageRef;
@@ -65,7 +63,6 @@ export const Route = createFileRoute("/api/tryon")({
         fal.config({ credentials: key });
 
         const items = body.items.slice(0, 6);
-
         const garmentInstructions = items
           .map((item, index) => {
             const imageRef = `@image${index + 2}`;

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { createOpenAiProvider } from "@/lib/ai-gateway";
+import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
 import { loadFullCatalog, formatCatalogForPrompt } from "@/lib/closet.server";
 
 type ChatRequestBody = { messages?: unknown };
@@ -105,10 +105,10 @@ The user will tell you about an event or occasion they're attending. Your job:
 3. When you propose the final outfit, you MUST end your reply with a single line in this exact format (no markdown, no extra text after it):
 OUTFIT: id1, id2, id3
 
-Use 1–6 item ids. Choose compatible pieces across categories when available. A dress can stand in for top and bottom. Use only valid ids from this catalog:
+Use 1-6 item ids. Choose compatible pieces across categories when available. A dress can stand in for top and bottom. Use only valid ids from this catalog:
 ${catalogText}
 
-Be concise, evocative, and editorial in tone. Reference why the selected pieces fit the user's prompt. Don't list bullet points — write 2–4 short sentences explaining the look before the OUTFIT line.${pioneerContext}`;
+Be concise, evocative, and editorial in tone. Reference why the selected pieces fit the user's prompt. Don't list bullet points - write 2-4 short sentences explaining the look before the OUTFIT line.${pioneerContext}`;
 }
 
 export const Route = createFileRoute("/api/chat")({
@@ -119,16 +119,18 @@ export const Route = createFileRoute("/api/chat")({
         if (!Array.isArray(messages)) {
           return new Response("Messages are required", { status: 400 });
         }
+
         const uiMessages = messages as UIMessage[];
-        const key = process.env.OPENAI_API_KEY;
-        if (!key) return new Response("Missing OPENAI_API_KEY", { status: 500 });
+        const key = process.env.LOVABLE_API_KEY;
+        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
         const [closet, pioneerExtraction] = await Promise.all([
           loadFullCatalog(),
           extractStylingContext(latestUserText(uiMessages)),
         ]);
-        const gateway = createOpenAiProvider(key);
-        const model = gateway(process.env.OPENAI_CHAT_MODEL ?? "gpt-4.1-mini");
+        const gateway = createLovableAiGatewayProvider(key);
+        const model = gateway(process.env.LOVABLE_CHAT_MODEL ?? "google/gemini-3-flash-preview");
+
         const result = streamText({
           model,
           system: buildSystem(

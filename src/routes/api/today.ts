@@ -108,12 +108,12 @@ async function fetchTodaysEvents(googleToken: string): Promise<GCalEvent[]> {
   return data.items ?? [];
 }
 
-async function planOutfit(openAiKey: string, event: GCalEvent, catalog: CatalogEntry[]) {
+async function planOutfit(lovableKey: string, event: GCalEvent, catalog: CatalogEntry[]) {
   const when = event.start?.dateTime ?? event.start?.date ?? "";
   const userPrompt = `Event: ${event.summary ?? "Untitled"}
 When: ${when}
-Location: ${event.location ?? "—"}
-Notes: ${event.description ?? "—"}
+Location: ${event.location ?? "-"}
+Notes: ${event.description ?? "-"}
 
 Pick THREE distinct outfit variants from the closet for this event.
 
@@ -125,14 +125,15 @@ Respond with ONLY a JSON object:
 
 Each variant should use 1-6 ids. A dress can stand in for top plus bottom. Only ids from the closet list.`;
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${openAiKey}`,
+      "Lovable-API-Key": lovableKey,
+      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_CHAT_MODEL ?? "gpt-4.1-mini",
+      model: process.env.LOVABLE_TODAY_MODEL ?? "google/gemini-2.5-flash",
       messages: [
         {
           role: "system",
@@ -154,6 +155,9 @@ export const Route = createFileRoute("/api/today")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const lovableKey = process.env.LOVABLE_API_KEY;
+        if (!lovableKey) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+
         let body: { providerToken?: string; checkOnly?: boolean };
         try {
           body = await request.json();
@@ -173,16 +177,13 @@ export const Route = createFileRoute("/api/today")({
             return Response.json({ ok: true });
           }
 
-          const openAiKey = process.env.OPENAI_API_KEY;
-          if (!openAiKey) return new Response("Missing OPENAI_API_KEY", { status: 500 });
-
           const [events, { catalog }] = await Promise.all([
             fetchTodaysEvents(googleToken),
             loadFullCatalog(),
           ]);
           const planned: PlannedEvent[] = await Promise.all(
             events.map(async (ev) => {
-              const variants = await planOutfit(openAiKey, ev, catalog);
+              const variants = await planOutfit(lovableKey, ev, catalog);
               return {
                 id: ev.id,
                 summary: ev.summary ?? "Untitled event",

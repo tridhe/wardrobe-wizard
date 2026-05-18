@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { Sparkles, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { mockUsers, setMockUser, useMockUser } from "@/lib/mock-user";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
-    meta: [{ title: "Sign in — Aura" }],
+    meta: [{ title: "Sign in - Aura" }],
   }),
   component: LoginPage,
 });
@@ -29,21 +30,21 @@ function LoginPage() {
 
   const signIn = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/today`,
-        scopes: "openid email profile https://www.googleapis.com/auth/calendar.readonly",
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}/today`,
+      extraParams: {
+        scope: "openid email profile https://www.googleapis.com/auth/calendar.readonly",
+        access_type: "offline",
+        prompt: "consent",
       },
     });
-    if (error) {
-      toast.error(error.message ?? "Sign in failed");
+    if (result.error) {
+      toast.error(result.error.message ?? "Sign in failed");
       setLoading(false);
+      return;
     }
+    if (result.redirected) return;
+    navigate({ to: "/today" });
   };
 
   const signInAsMock = (id: string) => {
@@ -61,14 +62,16 @@ function LoginPage() {
         <p className="text-[10px] font-medium tracking-[0.18em] text-muted-foreground mt-1 uppercase">
           Personal Style AI
         </p>
-        <p className="mt-6 text-sm text-muted-foreground">Sign in with Google to style your day.</p>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Sign in with Google to style your day.
+        </p>
         <button
           onClick={signIn}
           disabled={loading}
           className="mt-8 w-full inline-flex items-center justify-center gap-3 rounded-md border border-border bg-background hover:bg-accent transition-colors py-3 text-sm font-medium text-foreground disabled:opacity-50"
         >
           <GoogleIcon />
-          {loading ? "Redirecting…" : "Continue with Google"}
+          {loading ? "Redirecting..." : "Continue with Google"}
         </button>
         <div className="mt-6 border-t border-border pt-6">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">

@@ -277,7 +277,7 @@ export function AddItemDialog({ open, onClose }: { open: boolean; onClose: () =>
       >
         <h3 className="text-xl font-bold tracking-tight">Add to your closet</h3>
         <p className="text-sm text-muted-foreground mt-1 mb-5">
-          Upload a clean product shot — it works best with a plain background.
+          Upload a clean product shot - it works best with a plain background.
         </p>
 
         <label className="block">
